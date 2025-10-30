@@ -29,18 +29,26 @@
 │  └───────────────────────┬─────────────────────────────────┘   │
 │                          │                                       │
 │  ┌───────────────────────▼─────────────────────────────────┐   │
-│  │              Agent Orchestration Layer                   │   │
-│  │              (CrewAI Framework)                          │   │
+│  │         Agent Orchestration Layer (PARALLEL MODE)       │   │
+│  │              (CrewAI Hierarchical Framework)            │   │
 │  │                                                           │   │
-│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐        │   │
-│  │  │  Product   │  │  Software  │  │ Developer  │        │   │
-│  │  │  Manager   │  │ Architect  │  │            │        │   │
-│  │  └────────────┘  └────────────┘  └────────────┘        │   │
-│  │                                                           │   │
+│  │  Foundation Agents:                                      │   │
 │  │  ┌────────────┐  ┌────────────┐                         │   │
-│  │  │    QA      │  │ Technical  │                         │   │
-│  │  │  Engineer  │  │   Writer   │                         │   │
+│  │  │  Product   │  │  Software  │                         │   │
+│  │  │  Manager   │  │ Architect  │                         │   │
 │  │  └────────────┘  └────────────┘                         │   │
+│  │                                                           │   │
+│  │  Parallel Development Agents:                            │   │
+│  │  ┌────────────┐  ┌────────────┐                         │   │
+│  │  │  Backend   │  │ Frontend   │  ← Work Simultaneously  │   │
+│  │  │ Developer  │  │ Developer  │                         │   │
+│  │  └────────────┘  └────────────┘                         │   │
+│  │                                                           │   │
+│  │  Integration & QA Agents:                                │   │
+│  │  ┌────────────┐  ┌────────────┐  ┌────────────┐        │   │
+│  │  │Integration │  │     QA     │  │ Technical  │        │   │
+│  │  │ Engineer   │  │  Engineer  │  │   Writer   │        │   │
+│  │  └────────────┘  └────────────┘  └────────────┘        │   │
 │  └───────────────────────┬─────────────────────────────────┘   │
 │                          │                                       │
 │  ┌───────────────────────▼─────────────────────────────────┐   │
@@ -115,27 +123,41 @@
    ↓
 4. CrewAI initializes agents with LLM connections
    ↓
-5. Sequential Task Execution:
+5. Parallel Task Execution:
    
-   Task 1: Product Manager → Requirements
+   Phase 1 (Sequential Foundation):
+   Task 1: Product Manager → Requirements & Task Breakdown
             ↓
-   Task 2: Architect → Architecture Design
-            ↓ (uses Task 1 context)
-   Task 3: Developer → Code Implementation
-            ↓ (uses Task 1 & 2 context)
-   Task 4: QA Engineer → Testing Plan
-            ↓ (uses Task 3 context)
-   Task 5: Technical Writer → Documentation
-            ↓ (uses all previous context)
+   Task 2: Architect → Modular Architecture with Interfaces
+            ↓
    
-6. Results aggregation
+   Phase 2 (PARALLEL Development):
+   Task 3: Backend Developer ────────┐
+            (Server-side code)        │
+                                      │
+   Task 4: Frontend Developer ───────┤ → Work Simultaneously
+            (Client-side code)        │
+                                      │
+            ↓─────────────────────────┘
+   
+   Phase 3 (Integration):
+   Task 5: Integration Engineer → Test Connections & Report Issues
+            ↓
+   Task 6: QA Engineer → Validate & Coordinate Issue Resolution
+            ↓ (Team discusses problems together)
+   
+   Phase 4 (Documentation):
+   Task 7: Technical Writer → Complete Documentation
+            ↓
+   
+6. Results aggregation (backend + frontend + integration report)
    ↓
 7. Output formatting and presentation
    ↓
-8. User receives complete project
+8. User receives complete integrated project
 ```
 
-## Component Interactions
+## Parallel Collaboration Flow
 
 ```
 ┌──────────────┐
@@ -160,14 +182,82 @@
        │
        │ Recommended Model
        ▼
+┌──────────────────────────────────────────────────────────┐
+│  CrewAI Crew (Hierarchical Process)                      │
+│  • Create 7 Agents                                       │
+│  • Setup Parallel Tasks                                  │
+│  • Orchestrate Parallel + Integration Flow               │
+└──────┬───────────────────────────────────────────────────┘
+       │
+       │ Phase 1: Foundation (Sequential)
+       ▼
 ┌──────────────────────────┐
-│  CrewAI Crew             │
-│  • Create Agents         │
-│  • Setup Tasks           │
-│  • Orchestrate Flow      │
+│  Product Manager         │
+│  • Split tasks           │
+│  • Define components     │
 └──────┬───────────────────┘
        │
-       │ For Each Agent
+       ▼
+┌──────────────────────────┐
+│  Architect               │
+│  • Design interfaces     │
+│  • Define boundaries     │
+└──────┬───────────────────┘
+       │
+       │ Phase 2: PARALLEL Development
+       ▼
+       ├─────────────────────┬─────────────────────┐
+       │                     │                     │
+┌──────▼──────────┐   ┌─────▼────────────┐       │
+│ Backend Dev     │   │ Frontend Dev     │       │
+│ • Server logic  │   │ • UI components  │       │
+│ • APIs          │   │ • Client logic   │       │
+│ • Database      │   │ • API calls      │       │
+└──────┬──────────┘   └─────┬────────────┘       │
+       │                     │                     │
+       └─────────────────────┴─────────────────────┘
+       │
+       │ Phase 3: Integration & Testing
+       ▼
+┌──────────────────────────┐
+│  Integration Engineer    │
+│  • Test connections      │
+│  • Identify issues       │
+│  • Report problems       │
+└──────┬───────────────────┘
+       │
+       │ Issues Found?
+       ▼
+┌──────────────────────────┐
+│  QA Engineer             │◄─── Coordinates Team Discussion
+│  • Validate integration  │     if issues exist
+│  • Discuss with devs     │
+│  • Verify fixes          │
+└──────┬───────────────────┘
+       │
+       │ Phase 4: Documentation
+       ▼
+┌──────────────────────────┐
+│  Technical Writer        │
+│  • Document system       │
+│  • Create guides         │
+└──────┬───────────────────┘
+       │
+       │ Complete Integrated Project
+       ▼
+┌──────────────────────────┐
+│  User Receives:          │
+│  • Requirements          │
+│  • Architecture          │
+│  • Backend Code          │
+│  • Frontend Code         │
+│  • Integration Report    │
+│  • QA Validation         │
+│  • Documentation         │
+└──────────────────────────┘
+```
+
+## Component Interactions
        ▼
 ┌──────────────────────────┐
 │  LangChain + Ollama      │
