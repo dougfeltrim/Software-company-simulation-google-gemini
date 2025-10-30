@@ -1,0 +1,23 @@
+# Core dependencies
+crewai==0.28.8
+crewai-tools==0.1.6
+langchain==0.1.20
+langchain-community==0.0.38
+
+# Ollama integration
+ollama==0.1.7
+
+# Web interface
+gradio==4.19.2
+streamlit==1.31.1
+
+# Utilities
+python-dotenv==1.0.0
+psutil==5.9.8
+GPUtil==1.4.0
+pydantic==2.6.1
+pydantic-settings==2.1.0
+
+# Development
+pytest==8.0.0
+black==24.1.1

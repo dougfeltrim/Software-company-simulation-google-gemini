@@ -1,10 +1,170 @@
-# Projeto: Empresa de Software Usando Agentes de IA
+# 🏢 AI Software Company Simulation
 
-Este projeto simula uma empresa de software, utilizando agentes de inteligência artificial para colaborar no desenvolvimento de projetos completos, gerando código e documentação prontos para o cliente.
+> **Create complete software projects with AI agents powered by Ollama, CrewAI, and local LLMs**
 
-# Project: Software Company Using AI Agents
+This project simulates a software company where multiple AI agents collaborate to develop complete projects, generating code and documentation ready for the client. Now with **local execution**, **GPU/CPU support**, and a **ChatGPT-like interface**!
 
-This project simulates a software company where AI agents collaborate to develop complete projects, generating code and documentation ready for the client.
+## ✨ New Features
+
+- 🚀 **Fully Local Execution** - Runs completely on your machine using Ollama
+- 🤖 **CrewAI Integration** - Advanced multi-agent orchestration
+- 💻 **GPU & CPU Support** - Automatic hardware detection and optimization
+- 📊 **System Benchmark** - Automatically selects optimal models for your hardware
+- 🎨 **ChatGPT-like Interface** - Modern web UI built with Gradio
+- 🐳 **Docker Support** - Easy deployment with Docker Compose
+- 🔧 **Flexible Configuration** - Customize models, temperature, and more
+
+## 📋 Table of Contents
+
+- [Features](#features)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [Usage](#usage)
+- [Available Models](#available-models)
+- [Architecture](#architecture)
+- [Original Version](#original-version)
+- [Contributing](#contributing)
+
+## 🎯 Features
+
+### AI Agents
+
+The system includes 5 specialized AI agents that work together:
+
+1. **Product Manager** - Defines requirements and product vision
+2. **Software Architect** - Designs system architecture
+3. **Developer** - Writes production-ready code
+4. **QA Engineer** - Creates testing plans and validates quality
+5. **Technical Writer** - Documents everything clearly
+
+### Technical Features
+
+- ✅ **100% Local** - No API keys or cloud services needed
+- ✅ **Multi-Agent Collaboration** - Agents work together like a real team
+- ✅ **Hardware Optimization** - Automatically detects and uses GPU if available
+- ✅ **Model Selection** - Recommends best models for your hardware
+- ✅ **Web Interface** - Easy-to-use ChatGPT-like interface
+- ✅ **CLI Mode** - Command-line interface for automation
+- ✅ **Docker Support** - Containerized deployment
+- ✅ **Benchmark Tool** - Test your system capabilities
+
+## 💻 Requirements
+
+### Minimum Requirements
+
+- **Docker** and **Docker Compose**
+- **8GB RAM** (minimum)
+- **20GB free disk space**
+- **Linux, macOS, or Windows** with WSL2
+
+### Recommended Requirements
+
+- **16GB+ RAM**
+- **NVIDIA GPU** with 6GB+ VRAM (optional, but recommended)
+- **NVIDIA Container Toolkit** (for GPU support)
+
+### Software Requirements
+
+- Docker 20.10+
+- Docker Compose 2.0+
+- NVIDIA drivers (if using GPU)
+
+## 🚀 Quick Start
+
+### For Docker Users (Recommended)
+
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/dougfeltrim/Software-company-simulation-google-gemini.git
+   cd Software-company-simulation-google-gemini
+   ```
+
+2. **Run setup**
+   ```bash
+   ./setup.sh
+   ```
+
+3. **Start the services**
+   ```bash
+   # Auto-detect GPU/CPU
+   ./start.sh
+   
+   # Or force CPU mode
+   ./start.sh cpu
+   ```
+
+4. **Pull a model**
+   ```bash
+   ./pull-model.sh llama3:3b
+   ```
+
+5. **Access the web interface at http://localhost:7860**
+
+### For Local Python Users
+
+```bash
+pip install -r requirements.txt
+ollama pull llama3:3b
+python main.py interface
+```
+
+## 📖 Usage
+
+### Web Interface
+1. Access http://localhost:7860
+2. Select a model from the dropdown
+3. Enter your project description
+4. Click "Generate Project"
+5. Review output and download
+
+### CLI Mode
+```bash
+python main.py cli --description "Build a calculator app"
+```
+
+### System Benchmark
+```bash
+python main.py benchmark
+```
+
+## 🤖 Available Models
+
+- `llama3:8b` - Best quality (needs 8GB+ VRAM)
+- `llama3:3b` - Recommended default
+- `mistral:7b` - Excellent balance
+- `phi3:mini` - Fast and efficient
+- `gemma:2b` - Lightweight
+- `tinyllama:1.1b` - Very fast (CPU)
+
+## 🔧 Configuration
+
+Edit `.env` file:
+```env
+OLLAMA_HOST=http://localhost:11434
+OLLAMA_MODEL=llama3:3b
+TEMPERATURE=0.7
+PORT=7860
+```
+
+## 🔍 Troubleshooting
+
+**Ollama not starting:**
+```bash
+docker ps
+docker logs ollama
+docker restart ollama
+```
+
+**Model not found:**
+```bash
+./pull-model.sh llama3:3b
+```
+
+**Out of memory:** Use a smaller model like `tinyllama:1.1b`
+
+---
+
+## 📖 Original Version
 
 **Selecione o idioma desejado abaixo para visualizar as instruções completas em Português ou Inglês.**  
 
