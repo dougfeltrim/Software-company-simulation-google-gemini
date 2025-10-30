@@ -11,8 +11,6 @@ import argparse
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
 
 from utils.benchmark import run_benchmark
-from interface.gradio_app import launch_interface
-from agents.crew import create_software_company
 from utils.config import load_settings
 
 
@@ -24,6 +22,9 @@ def run_benchmark_command():
 
 def run_interface_command(args):
     """Run the web interface."""
+    # Import here to avoid loading gradio when not needed
+    from interface.gradio_app import launch_interface
+    
     settings = load_settings()
     
     host = args.host or settings.host
@@ -39,6 +40,9 @@ def run_interface_command(args):
 
 def run_cli_command(args):
     """Run the CLI version (direct generation without web interface)."""
+    # Import here to avoid loading heavy dependencies when not needed
+    from agents.crew import create_software_company
+    
     settings = load_settings()
     
     if not args.description:
