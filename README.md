@@ -29,18 +29,22 @@ This project simulates a software company where multiple AI agents collaborate t
 
 ### AI Agents
 
-The system includes 5 specialized AI agents that work together:
+The system includes 7 specialized AI agents that work in parallel:
 
-1. **Product Manager** - Defines requirements and product vision
-2. **Software Architect** - Designs system architecture
-3. **Developer** - Writes production-ready code
-4. **QA Engineer** - Creates testing plans and validates quality
-5. **Technical Writer** - Documents everything clearly
+1. **Product Manager** - Defines requirements, splits tasks for parallel work
+2. **Software Architect** - Designs modular architecture with clear component boundaries
+3. **Backend Developer** - Develops server-side components in parallel
+4. **Frontend Developer** - Develops client-side components in parallel
+5. **Integration Engineer** - Tests component connections and identifies integration issues
+6. **QA Engineer** - Validates quality and coordinates issue resolution
+7. **Technical Writer** - Documents everything clearly
 
 ### Technical Features
 
 - ✅ **100% Local** - No API keys or cloud services needed
-- ✅ **Multi-Agent Collaboration** - Agents work together like a real team
+- ✅ **Parallel Agent Collaboration** - Agents work on different components simultaneously
+- ✅ **Automatic Integration Testing** - Components are tested and integrated automatically
+- ✅ **Collaborative Problem Solving** - Agents discuss and resolve integration issues together
 - ✅ **Hardware Optimization** - Automatically detects and uses GPU if available
 - ✅ **Model Selection** - Recommends best models for your hardware
 - ✅ **Web Interface** - Easy-to-use ChatGPT-like interface

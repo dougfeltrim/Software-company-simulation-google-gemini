@@ -42,39 +42,64 @@ class SoftwareCompanyCrewAI:
         
         agents = {}
         
-        # Product Manager Agent
+        # Product Manager Agent - Coordinates and splits tasks
         agents['product_manager'] = Agent(
             role='Product Manager',
-            goal='Define clear software requirements and product vision',
+            goal='Define clear software requirements, split tasks, and coordinate the team',
             backstory="""You are an experienced Product Manager with a keen eye for user needs 
             and market requirements. You excel at translating client needs into clear, 
-            actionable requirements that guide the development team.""",
+            actionable requirements and breaking down projects into parallel workstreams 
+            for the development team.""",
             verbose=True,
-            allow_delegation=False,
+            allow_delegation=True,  # Can delegate to coordinate parallel work
             llm=self.llm
         )
         
         # Software Architect Agent
         agents['architect'] = Agent(
             role='Software Architect',
-            goal='Design robust and scalable software architecture',
+            goal='Design robust and scalable software architecture with modular components',
             backstory="""You are a seasoned Software Architect with deep knowledge of design 
             patterns, system architecture, and best practices. You create technical designs 
-            that are both elegant and practical.""",
+            that are modular, allowing multiple developers to work in parallel. You excel 
+            at defining clear interfaces between components.""",
             verbose=True,
-            allow_delegation=False,
+            allow_delegation=True,
             llm=self.llm
         )
         
-        # Developer Agent
-        agents['developer'] = Agent(
-            role='Software Developer',
-            goal='Write clean, efficient, and well-documented code',
-            backstory="""You are a skilled Software Developer who writes production-ready code. 
-            You follow best practices, write clean code, and ensure everything works correctly. 
-            You are proficient in Python and other modern programming languages.""",
+        # Developer Agents (multiple for parallel work)
+        agents['developer_1'] = Agent(
+            role='Backend Developer',
+            goal='Develop backend components and APIs',
+            backstory="""You are a skilled Backend Developer who specializes in server-side 
+            logic, databases, and APIs. You write production-ready code and work collaboratively 
+            with other developers to ensure components integrate seamlessly.""",
             verbose=True,
-            allow_delegation=False,
+            allow_delegation=True,
+            llm=self.llm
+        )
+        
+        agents['developer_2'] = Agent(
+            role='Frontend Developer',
+            goal='Develop frontend components and user interfaces',
+            backstory="""You are a skilled Frontend Developer who specializes in user 
+            interfaces and client-side logic. You write clean, maintainable code and ensure 
+            your components integrate well with backend services.""",
+            verbose=True,
+            allow_delegation=True,
+            llm=self.llm
+        )
+        
+        # Integration Engineer - Tests connections between components
+        agents['integration_engineer'] = Agent(
+            role='Integration Engineer',
+            goal='Integrate components, test connections, and identify integration issues',
+            backstory="""You are an Integration Engineer who specializes in bringing 
+            different code components together. You test how modules connect, identify 
+            integration problems, and work with the team to resolve them.""",
+            verbose=True,
+            allow_delegation=True,
             llm=self.llm
         )
         
@@ -95,24 +120,23 @@ class SoftwareCompanyCrewAI:
             role='QA Engineer',
             goal='Ensure software quality through testing and validation',
             backstory="""You are a meticulous QA Engineer who ensures software meets quality 
-            standards. You design test cases, identify bugs, and validate that everything 
-            works as expected.""",
+            standards. You design test cases, identify bugs, and work with the team to 
+            validate that everything works as expected.""",
             verbose=True,
-            allow_delegation=False,
+            allow_delegation=True,
             llm=self.llm
         )
         
         return agents
     
     def _create_tasks(self, project_description: str) -> List[Task]:
-        """Create tasks for the software development process."""
+        """Create tasks for parallel software development with integration and discussion."""
         
         tasks = []
         
-        # Task 1: Product Requirements
+        # Phase 1: Requirements and Architecture (Sequential foundation)
         task_requirements = Task(
-            description=f"""Analyze the following project description and create detailed 
-            software requirements:
+            description=f"""Analyze the project and create detailed requirements with task breakdown:
             
             Project: {project_description}
             
@@ -120,84 +144,121 @@ class SoftwareCompanyCrewAI:
             1. Clear project objectives
             2. Functional requirements
             3. Non-functional requirements
-            4. User stories (if applicable)
+            4. Component breakdown for parallel development
             5. Success criteria
             
-            Be specific and actionable.""",
+            Split the project into at least 2-3 independent components that can be developed in parallel.""",
             agent=self.agents['product_manager'],
-            expected_output="Detailed software requirements document"
+            expected_output="Requirements document with component breakdown for parallel work"
         )
         tasks.append(task_requirements)
         
-        # Task 2: Architecture Design
         task_architecture = Task(
-            description="""Based on the requirements, design the software architecture:
+            description="""Design modular architecture for parallel development:
             
             Include:
-            1. System architecture overview
-            2. Component breakdown
-            3. Technology stack recommendations
-            4. Design patterns to use
-            5. Data flow and structure
+            1. System architecture with clear component boundaries
+            2. Interface definitions between components
+            3. Technology stack for each component
+            4. Design patterns for modularity
+            5. Integration points and APIs
             
-            Make it practical and implementable.""",
+            Ensure components can be developed independently and integrated later.""",
             agent=self.agents['architect'],
-            expected_output="Software architecture design document",
+            expected_output="Modular architecture design with integration specifications",
             context=[task_requirements]
         )
         tasks.append(task_architecture)
         
-        # Task 3: Code Development
-        task_development = Task(
-            description="""Implement the software based on the requirements and architecture:
+        # Phase 2: Parallel Development
+        task_backend = Task(
+            description="""Develop backend components based on the architecture:
             
-            Provide:
-            1. Complete, working Python code
-            2. Well-structured modules/files
-            3. Comments explaining key sections
-            4. Error handling
-            5. Code that follows best practices
+            Focus on:
+            1. Server-side logic and business rules
+            2. Database models and data access
+            3. API endpoints with clear interfaces
+            4. Error handling and validation
+            5. Backend utilities and helpers
             
-            Make it production-ready.""",
-            agent=self.agents['developer'],
-            expected_output="Complete Python code implementation",
+            Ensure your code follows the interface specifications from the architecture.""",
+            agent=self.agents['developer_1'],
+            expected_output="Complete backend implementation with documented interfaces",
             context=[task_requirements, task_architecture]
         )
-        tasks.append(task_development)
+        tasks.append(task_backend)
         
-        # Task 4: Testing
-        task_testing = Task(
-            description="""Review the code and create a testing plan:
+        task_frontend = Task(
+            description="""Develop frontend components based on the architecture:
             
-            Include:
-            1. Test cases for main functionality
-            2. Edge cases to consider
-            3. Validation approach
-            4. Potential issues identified
-            5. Testing recommendations
+            Focus on:
+            1. User interface and interaction logic
+            2. Client-side validation
+            3. API client to consume backend services
+            4. User experience flow
+            5. Frontend utilities
             
-            Be thorough and practical.""",
-            agent=self.agents['qa_engineer'],
-            expected_output="Testing plan and quality assessment",
-            context=[task_development]
+            Ensure your code integrates with the backend API interfaces.""",
+            agent=self.agents['developer_2'],
+            expected_output="Complete frontend implementation with API integration",
+            context=[task_requirements, task_architecture],
+            async_execution=True  # Run in parallel with backend
         )
-        tasks.append(task_testing)
+        tasks.append(task_frontend)
         
-        # Task 5: Documentation
+        # Phase 3: Integration and Testing
+        task_integration = Task(
+            description="""Integrate all components and test connections:
+            
+            Review:
+            1. Backend code and its interfaces
+            2. Frontend code and its API calls
+            3. Integration points between components
+            4. Data flow across the system
+            5. Error handling across boundaries
+            
+            Test the connections and identify any integration issues. If problems exist,
+            document them clearly for the team to discuss and resolve.""",
+            agent=self.agents['integration_engineer'],
+            expected_output="Integration report with test results and any issues found",
+            context=[task_backend, task_frontend]
+        )
+        tasks.append(task_integration)
+        
+        # Phase 4: Issue Resolution (if needed)
+        task_qa_validation = Task(
+            description="""Validate the integrated system and work with team to resolve issues:
+            
+            Review:
+            1. Integration test results
+            2. Any issues or bugs identified
+            3. Code quality across all components
+            4. Test coverage and edge cases
+            
+            If issues are found, coordinate with developers to discuss and fix them.
+            Ensure the full system works correctly after integration.""",
+            agent=self.agents['qa_engineer'],
+            expected_output="QA validation report and resolution status",
+            context=[task_integration, task_backend, task_frontend]
+        )
+        tasks.append(task_qa_validation)
+        
+        # Phase 5: Documentation
         task_documentation = Task(
-            description="""Create comprehensive documentation for the project:
+            description="""Create comprehensive documentation for the complete system:
             
             Include:
             1. Project overview
-            2. Installation instructions
-            3. Usage guide with examples
-            4. API/Function documentation
-            5. Troubleshooting section
+            2. Architecture and component descriptions
+            3. Installation and setup instructions
+            4. API documentation (if applicable)
+            5. Usage examples
+            6. Troubleshooting guide
             
-            Make it clear and helpful for users.""",
+            Cover both frontend and backend components.""",
             agent=self.agents['technical_writer'],
             expected_output="Complete technical documentation",
-            context=[task_requirements, task_development]
+            context=[task_requirements, task_architecture, task_backend, task_frontend, task_qa_validation]
         )
         tasks.append(task_documentation)
         
@@ -205,7 +266,7 @@ class SoftwareCompanyCrewAI:
     
     def generate_project(self, project_description: str, verbose: bool = True) -> Dict[str, str]:
         """
-        Generate a complete software project using CrewAI.
+        Generate a complete software project using CrewAI with parallel agent collaboration.
         
         Args:
             project_description: Description of the project to create
@@ -217,35 +278,40 @@ class SoftwareCompanyCrewAI:
         print(f"\n{'='*60}")
         print(f"Starting Software Company Project Generation")
         print(f"Model: {self.model_name} | Hardware: {self.hardware_mode}")
+        print(f"Mode: PARALLEL COLLABORATION")
         print(f"{'='*60}\n")
         
         start_time = time.time()
         
-        # Create tasks
+        # Create tasks for parallel work
         tasks = self._create_tasks(project_description)
         
-        # Create crew
+        # Create crew with hierarchical process for better collaboration
         crew = Crew(
             agents=list(self.agents.values()),
             tasks=tasks,
-            process=Process.sequential,
+            process=Process.hierarchical,  # Changed from sequential to hierarchical
+            manager_llm=self.llm,  # Manager coordinates parallel work
             verbose=verbose
         )
         
         # Execute the crew
-        print("Crew is working on the project...\n")
+        print("Crew is working on the project in parallel...\n")
+        print("🔄 Agents will split tasks, work in parallel, integrate, and discuss issues together.\n")
         result = crew.kickoff()
         
         end_time = time.time()
         duration = end_time - start_time
         
-        # Parse results
+        # Parse results - now including separate backend and frontend
         project_components = {
             'requirements': tasks[0].output.raw_output if hasattr(tasks[0].output, 'raw_output') else str(tasks[0].output),
             'architecture': tasks[1].output.raw_output if hasattr(tasks[1].output, 'raw_output') else str(tasks[1].output),
-            'code': tasks[2].output.raw_output if hasattr(tasks[2].output, 'raw_output') else str(tasks[2].output),
-            'testing': tasks[3].output.raw_output if hasattr(tasks[3].output, 'raw_output') else str(tasks[3].output),
-            'documentation': tasks[4].output.raw_output if hasattr(tasks[4].output, 'raw_output') else str(tasks[4].output),
+            'backend_code': tasks[2].output.raw_output if hasattr(tasks[2].output, 'raw_output') else str(tasks[2].output),
+            'frontend_code': tasks[3].output.raw_output if hasattr(tasks[3].output, 'raw_output') else str(tasks[3].output),
+            'integration_report': tasks[4].output.raw_output if hasattr(tasks[4].output, 'raw_output') else str(tasks[4].output),
+            'testing': tasks[5].output.raw_output if hasattr(tasks[5].output, 'raw_output') else str(tasks[5].output),
+            'documentation': tasks[6].output.raw_output if hasattr(tasks[6].output, 'raw_output') else str(tasks[6].output),
             'full_output': str(result),
             'duration_seconds': round(duration, 2),
             'model': self.model_name,
@@ -255,6 +321,7 @@ class SoftwareCompanyCrewAI:
         print(f"\n{'='*60}")
         print(f"Project Generation Complete!")
         print(f"Duration: {duration:.2f} seconds")
+        print(f"Components: Backend, Frontend, Integration, Tests, Docs")
         print(f"{'='*60}\n")
         
         return project_components

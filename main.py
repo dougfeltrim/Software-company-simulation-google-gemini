@@ -76,11 +76,13 @@ def run_cli_command(args):
     output_dir = args.output or "output"
     os.makedirs(output_dir, exist_ok=True)
     
-    # Save each component
+    # Save each component with new parallel structure
     components = {
         'requirements.md': result['requirements'],
         'architecture.md': result['architecture'],
-        'code.py': result['code'],
+        'backend_code.py': result['backend_code'],
+        'frontend_code.py': result['frontend_code'],
+        'integration_report.md': result['integration_report'],
         'testing.md': result['testing'],
         'documentation.md': result['documentation']
     }

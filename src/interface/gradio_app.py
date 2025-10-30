@@ -58,15 +58,16 @@ class SoftwareCompanyInterface:
         return self.recommendations['primary'] + self.recommendations['fallback']
     
     def generate_project(self, project_description: str, model_name: str, 
-                        progress=gr.Progress()) -> Tuple[str, str, str, str, str, str]:
+                        progress=gr.Progress()) -> Tuple[str, str, str, str, str, str, str, str]:
         """
-        Generate a software project based on the description.
+        Generate a software project based on the description with parallel agent work.
         
-        Returns tuple of (requirements, architecture, code, testing, documentation, summary)
+        Returns tuple of (requirements, architecture, backend_code, frontend_code, 
+                         integration_report, testing, documentation, summary)
         """
         if not project_description.strip():
             error_msg = "❌ Please provide a project description"
-            return error_msg, "", "", "", "", ""
+            return error_msg, "", "", "", "", "", "", ""
         
         try:
             progress(0, desc="Initializing...")
@@ -84,7 +85,7 @@ class SoftwareCompanyInterface:
             )
             
             # Generate project
-            progress(0.2, desc="AI team is working on your project...")
+            progress(0.2, desc="AI team is working in parallel on your project...")
             result = self.current_company.generate_project(project_description, verbose=True)
             
             progress(1.0, desc="Complete!")
@@ -94,15 +95,26 @@ class SoftwareCompanyInterface:
 
 **Model Used:** {result['model']}  
 **Hardware Mode:** {result['hardware_mode'].upper()}  
-**Duration:** {result['duration_seconds']} seconds
+**Duration:** {result['duration_seconds']} seconds  
+**Mode:** Parallel Collaboration
 
-The AI team has successfully created your project. Review each section below.
+The AI team worked in parallel on different components and integrated them together. 
+Review each section below to see the complete project.
+
+### Components Created:
+- ✅ Requirements & Architecture
+- ✅ Backend Code (developed in parallel)
+- ✅ Frontend Code (developed in parallel)
+- ✅ Integration & Testing
+- ✅ Documentation
 """
             
             return (
                 result['requirements'],
                 result['architecture'],
-                result['code'],
+                result['backend_code'],
+                result['frontend_code'],
+                result['integration_report'],
                 result['testing'],
                 result['documentation'],
                 summary
@@ -110,15 +122,18 @@ The AI team has successfully created your project. Review each section below.
             
         except Exception as e:
             error_msg = f"❌ **Error generating project:**\n\n{str(e)}\n\nPlease make sure Ollama is running and the model is pulled."
-            return error_msg, "", "", "", "", ""
+            return error_msg, "", "", "", "", "", "", ""
     
-    def download_project(self, requirements: str, architecture: str, code: str, 
-                        testing: str, documentation: str) -> str:
+    def download_project(self, requirements: str, architecture: str, backend_code: str,
+                        frontend_code: str, integration_report: str, testing: str, 
+                        documentation: str) -> str:
         """Create a downloadable project file."""
         project_data = {
             "requirements": requirements,
             "architecture": architecture,
-            "code": code,
+            "backend_code": backend_code,
+            "frontend_code": frontend_code,
+            "integration_report": integration_report,
             "testing": testing,
             "documentation": documentation
         }
@@ -193,8 +208,14 @@ The AI team has successfully created your project. Review each section below.
                     with gr.Tab("🏗️ Architecture"):
                         architecture_output = gr.Markdown()
                     
-                    with gr.Tab("💻 Code"):
-                        code_output = gr.Code(language="python", label="Generated Code")
+                    with gr.Tab("🔧 Backend Code"):
+                        backend_code_output = gr.Code(language="python", label="Backend Implementation")
+                    
+                    with gr.Tab("🎨 Frontend Code"):
+                        frontend_code_output = gr.Code(language="python", label="Frontend Implementation")
+                    
+                    with gr.Tab("🔗 Integration"):
+                        integration_output = gr.Markdown()
                     
                     with gr.Tab("🧪 Testing"):
                         testing_output = gr.Markdown()
@@ -243,13 +264,17 @@ The AI team has successfully created your project. Review each section below.
                 ✅ ChatGPT-like interface  
                 ✅ Containerized with Docker  
                 
-                ### How It Works
+                ### How It Works (Parallel Collaboration Mode)
                 
-                1. **Product Manager** defines requirements
-                2. **Software Architect** designs the architecture
-                3. **Developer** writes the code
-                4. **QA Engineer** creates testing plans
-                5. **Technical Writer** documents everything
+                1. **Product Manager** defines requirements and splits tasks
+                2. **Software Architect** designs modular architecture
+                3. **Backend Developer** and **Frontend Developer** work in parallel
+                4. **Integration Engineer** tests component connections
+                5. **QA Engineer** validates and coordinates issue resolution
+                6. **Technical Writer** documents the complete system
+                
+                Agents work in parallel on different components, then integrate and discuss 
+                any issues together to ensure everything works correctly.
                 
                 ### Requirements
                 
@@ -267,14 +292,16 @@ The AI team has successfully created your project. Review each section below.
             generate_btn.click(
                 fn=self.generate_project,
                 inputs=[project_input, model_dropdown],
-                outputs=[requirements_output, architecture_output, code_output, 
-                        testing_output, documentation_output, summary_output]
+                outputs=[requirements_output, architecture_output, backend_code_output, 
+                        frontend_code_output, integration_output, testing_output, 
+                        documentation_output, summary_output]
             )
             
             download_btn.click(
                 fn=self.download_project,
-                inputs=[requirements_output, architecture_output, code_output,
-                       testing_output, documentation_output],
+                inputs=[requirements_output, architecture_output, backend_code_output,
+                       frontend_code_output, integration_output, testing_output, 
+                       documentation_output],
                 outputs=[download_file]
             )
             
