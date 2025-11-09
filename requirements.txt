@@ -9,7 +9,7 @@ ollama==0.1.7
 
 # Web interface
 gradio==5.31.0
-streamlit==1.31.1
+streamlit==1.37.0
 
 # Utilities
 python-dotenv==1.0.0
