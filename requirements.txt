@@ -20,4 +20,4 @@ pydantic-settings==2.1.0
 
 # Development
 pytest==8.0.0
-black==24.1.1
+black==24.3.0
