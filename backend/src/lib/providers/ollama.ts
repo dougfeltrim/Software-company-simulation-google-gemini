@@ -3,7 +3,7 @@
  * Handles all LLM interactions with streaming support
  */
 
-import Ollama from 'ollama';
+import { Ollama } from 'ollama';
 import { OLLAMA_HOST, DEFAULT_TEMPERATURE } from '../config';
 
 export interface OllamaMessage {
@@ -109,7 +109,7 @@ export class OllamaProvider {
   async listModels(): Promise<string[]> {
     try {
       const response = await this.client.list();
-      return response.models.map(m => m.name);
+      return response.models.map((m: any) => m.name);
     } catch (error) {
       console.error('[Ollama] Error listing models:', error);
       return [];
