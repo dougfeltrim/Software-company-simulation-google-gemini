@@ -13,7 +13,7 @@ class Settings(BaseSettings):
     
     # Ollama settings
     ollama_host: str = Field(default="http://localhost:11434", description="Ollama API host")
-    ollama_model: str = Field(default="llama3:3b", description="Default Ollama model")
+    ollama_model: str = Field(default="llama3.2:3b", description="Default Ollama model")
     
     # Hardware settings
     use_gpu: bool = Field(default=True, description="Use GPU if available")

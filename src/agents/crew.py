@@ -3,7 +3,7 @@ CrewAI-based software company simulation with multiple agents.
 """
 
 from crewai import Agent, Task, Crew, Process
-from langchain_community.llms import Ollama
+from langchain_ollama import OllamaLLM
 from typing import Dict, List, Optional, Tuple
 import time
 
@@ -11,7 +11,7 @@ import time
 class SoftwareCompanyCrewAI:
     """Software company simulation using CrewAI and Ollama."""
     
-    def __init__(self, model_name: str = "llama3:3b", ollama_host: str = "http://localhost:11434", 
+    def __init__(self, model_name: str = "llama3.2:3b", ollama_host: str = "http://localhost:11434", 
                  temperature: float = 0.7, hardware_mode: str = "cpu"):
         """
         Initialize the software company with CrewAI agents.
@@ -28,7 +28,7 @@ class SoftwareCompanyCrewAI:
         self.hardware_mode = hardware_mode
         
         # Initialize Ollama LLM
-        self.llm = Ollama(
+        self.llm = OllamaLLM(
             model=model_name,
             base_url=ollama_host,
             temperature=temperature

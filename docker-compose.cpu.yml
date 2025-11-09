@@ -34,12 +34,10 @@ services:
       - GRADIO_SERVER_NAME=0.0.0.0
       - GRADIO_SERVER_PORT=7860
       - HARDWARE_MODE=cpu
+      - OPENAI_API_KEY=dummy
     volumes:
       - ./src:/app/src
       - project_outputs:/tmp
-    depends_on:
-      ollama:
-        condition: service_healthy
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:7860/"]
