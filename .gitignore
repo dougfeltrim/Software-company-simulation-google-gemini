@@ -1,24 +1,24 @@
-# Python
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript
+*.tsbuildinfo
+dist/
+build/
+
+# Next.js
+.next/
+out/
+
+# Python (legacy)
 __pycache__/
 *.py[cod]
 *$py.class
 *.so
 .Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
 
 # Virtual Environment
 venv/
@@ -39,15 +39,14 @@ ENV/
 # Docker
 *.log
 
-# Output files
+# Generated files
+generated/
 output/
-*.json
-/tmp/
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Gradio
+# Gradio (legacy)
 gradio_cached_examples/
 flagged/
