@@ -91,6 +91,13 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
     description: 'Optimized for conversational tasks',
     maxTokens: 4096,
   },
+  {
+    name: 'gemma3:4b',
+    displayName: 'Gemma 3 4B',
+    category: 'common',
+    description: 'Google\'s latest efficient open model',
+    maxTokens: 4096,
+  },
 ];
 
 export const DEFAULT_MODEL = 'llama3.1:8b';

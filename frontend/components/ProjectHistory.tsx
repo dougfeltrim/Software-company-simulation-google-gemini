@@ -15,7 +15,11 @@ interface ProjectHistoryEntry {
   error?: string
 }
 
-export function ProjectHistory() {
+interface ProjectHistoryProps {
+  onSelectProject?: (id: string) => void
+}
+
+export function ProjectHistory({ onSelectProject }: ProjectHistoryProps) {
   const [projects, setProjects] = useState<ProjectHistoryEntry[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -39,7 +43,8 @@ export function ProjectHistory() {
     return () => clearInterval(interval)
   }, [])
 
-  const deleteProject = async (id: string) => {
+  const deleteProject = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation() // Prevent triggering selection
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
       await fetch(`${apiUrl}/api/history/${id}`, { method: 'DELETE' })
@@ -82,7 +87,8 @@ export function ProjectHistory() {
           projects.map((project) => (
             <div
               key={project.id}
-              className={`p-4 rounded-lg border ${getStatusColor(project.status)}`}
+              onClick={() => onSelectProject?.(project.id)}
+              className={`p-4 rounded-lg border ${getStatusColor(project.status)} cursor-pointer hover:shadow-md transition-all`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
@@ -90,7 +96,7 @@ export function ProjectHistory() {
                     {getStatusIcon(project.status)}
                     <h3 className="font-medium truncate">{project.name}</h3>
                   </div>
-                  
+
                   <p className="text-sm text-gray-600 line-clamp-2 mb-2">
                     {project.description}
                   </p>
@@ -117,7 +123,7 @@ export function ProjectHistory() {
                 </div>
 
                 <button
-                  onClick={() => deleteProject(project.id)}
+                  onClick={(e) => deleteProject(project.id, e)}
                   className="p-2 hover:bg-white rounded-lg transition-colors"
                   title="Delete project"
                 >

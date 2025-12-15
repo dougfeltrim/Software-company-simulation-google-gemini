@@ -26,7 +26,8 @@ export class HistoryService {
 
   constructor() {
     this.historyFile = path.join(process.cwd(), 'generated', 'history.json');
-    this.projectsDir = path.join(process.cwd(), 'generated', 'projects');
+    // Save projects in a 'generated-projects' folder at the repository root level (one up from backend)
+    this.projectsDir = path.resolve(process.cwd(), '..', 'generated-projects');
   }
 
   /**
@@ -36,14 +37,14 @@ export class HistoryService {
     try {
       await fs.mkdir(path.dirname(this.historyFile), { recursive: true });
       await fs.mkdir(this.projectsDir, { recursive: true });
-      
+
       // Create history file if it doesn't exist
       try {
         await fs.access(this.historyFile);
       } catch {
         await fs.writeFile(this.historyFile, JSON.stringify([], null, 2));
       }
-      
+
       console.log('[History] Initialized successfully');
     } catch (error) {
       console.error('[History] Failed to initialize:', error);
@@ -59,6 +60,12 @@ export class HistoryService {
     description: string,
     model: string
   ): Promise<string> {
+    // Sanitize name for folder use
+    const safeName = name.replace(/[^a-z0-9]+/gi, '-').toLowerCase().replace(/^-+|-+$/g, '') || 'project';
+    const uniqueSuffix = Date.now().toString().slice(-6);
+    const folderName = `${safeName}-${uniqueSuffix}`;
+    const outputPath = path.join(this.projectsDir, folderName);
+
     const entry: ProjectHistoryEntry = {
       id: uuidv4(),
       name,
@@ -67,13 +74,14 @@ export class HistoryService {
       status: 'in-progress',
       createdAt: Date.now(),
       filesGenerated: [],
+      outputPath: outputPath, // Store absolute path
     };
 
     const history = await this.loadHistory();
     history.unshift(entry);
     await this.saveHistory(history);
 
-    console.log(`[History] Added project: ${name} (${entry.id})`);
+    console.log(`[History] Added project: ${name} (${entry.id}) in ${folderName}`);
     return entry.id;
   }
 
@@ -202,10 +210,34 @@ export class HistoryService {
     }
   }
 
+  async resetInProgressProjects(): Promise<number> {
+    const history = await this.loadHistory();
+    let count = 0;
+
+    for (const project of history) {
+      if (project.status === 'in-progress') {
+        project.status = 'failed';
+        count++;
+      }
+    }
+
+    if (count > 0) {
+      await this.saveHistory(history);
+      console.log(`[History] Reset ${count} in-progress projects to failed.`);
+    }
+
+    return count;
+  }
+
   /**
    * Get project output directory
    */
-  getProjectDir(projectId: string): string {
+  async getProjectDir(projectId: string): Promise<string> {
+    const project = await this.getProject(projectId);
+    if (project && project.outputPath) {
+      return project.outputPath;
+    }
+    // Fallback for legacy projects or if not found
     return path.join(this.projectsDir, projectId);
   }
 }
