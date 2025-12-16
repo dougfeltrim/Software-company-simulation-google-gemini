@@ -211,6 +211,131 @@ app.post('/api/stop', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+// CrewAI Service URL
+const CREWAI_SERVICE_URL = process.env.CREWAI_SERVICE_URL || 'http://localhost:3002';
+
+// Check CrewAI service availability
+app.get('/api/crewai/health', async (req: Request, res: Response) => {
+  try {
+    const response = await fetch(`${CREWAI_SERVICE_URL}/health`);
+    const data = await response.json() as { status: string };
+    res.json({ available: true, status: data.status });
+  } catch (error) {
+    res.json({ available: false, error: 'CrewAI service not running' });
+  }
+});
+
+// Generate project using LangGraph (Multi-Agent)
+app.post('/api/generate-crewai', async (req: Request, res: Response) => {
+  const { description, model, name } = req.body;
+
+  if (!description) {
+    return res.status(400).json({
+      error: 'Missing required field: description'
+    });
+  }
+
+  const projectName = name || `LangGraph-Project-${Date.now()}`;
+
+  try {
+    logger.clearLogs();
+    logger.logStatus(`🤖 Starting LangGraph generation: ${projectName}`);
+
+    // Create project in history
+    const projectId = await historyService.addProject(
+      projectName,
+      description,
+      model || 'langgraph'
+    );
+
+    activeProjects.add(projectId);
+
+    // Start generation in background (don't wait)
+    generateWithLangGraph(projectId, projectName, description, model)
+      .catch(error => {
+        console.error('LangGraph generation failed:', error);
+        historyService.failProject(
+          projectId,
+          error instanceof Error ? error.message : 'Unknown error'
+        );
+      });
+
+    res.json({
+      projectId,
+      message: 'LangGraph project generation started',
+      name: projectName,
+    });
+
+  } catch (error) {
+    logger.logError('LangGraph generation failed', error as Error);
+    res.status(500).json({
+      error: error instanceof Error ? error.message : 'LangGraph generation failed'
+    });
+  }
+});
+
+/**
+ * Generate project using LangGraph service (async function)
+ */
+async function generateWithLangGraph(
+  projectId: string,
+  name: string,
+  description: string,
+  model: string
+): Promise<void> {
+  try {
+    // Check for cancellation
+    if (activeCancellations.has(projectId)) throw new Error('Stopped by user');
+
+    logger.logProgress('Connecting to LangGraph service...', 5);
+
+    // Call LangGraph service
+    const response = await fetch(`${CREWAI_SERVICE_URL}/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, description, model })
+    });
+
+    if (!response.ok) {
+      throw new Error(`LangGraph service error: ${response.statusText}`);
+    }
+
+    const result = await response.json() as { files: Array<{ path: string; content: string }> };
+
+    // Check for cancellation
+    if (activeCancellations.has(projectId)) throw new Error('Stopped by user');
+
+    // Save generated files
+    const projectDir = await historyService.getProjectDir(projectId);
+    await fs.mkdir(projectDir, { recursive: true });
+
+    const filesGenerated: string[] = [];
+
+    for (const file of result.files) {
+      if (activeCancellations.has(projectId)) throw new Error('Stopped by user');
+
+      const fullPath = path.join(projectDir, file.path);
+      await fs.mkdir(path.dirname(fullPath), { recursive: true });
+      await fs.writeFile(fullPath, file.content);
+      filesGenerated.push(file.path);
+      logger.logStatus(`✅ Saved: ${file.path}`);
+    }
+
+    // Complete project
+    await historyService.completeProject(projectId, filesGenerated, projectDir);
+    logger.logProgress(`🎉 Project completed with ${filesGenerated.length} files!`, 100);
+    logger.logStatus(`✅ LangGraph project "${name}" completed successfully`);
+
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    logger.logError(`LangGraph project "${name}" failed: ${message}`);
+    await historyService.failProject(projectId, message);
+  } finally {
+    activeProjects.delete(projectId);
+    activeCancellations.delete(projectId);
+  }
+}
+
 // Generate project endpoint
 app.post('/api/generate', async (req: Request, res: Response) => {
   const { description, model, name } = req.body;

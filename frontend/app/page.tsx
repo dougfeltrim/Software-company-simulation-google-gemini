@@ -23,6 +23,8 @@ export default function Home() {
   const [generating, setGenerating] = useState(false)
   const [activeTab, setActiveTab] = useState<'logs' | 'history'>('logs')
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
+  const [useCrewAI, setUseCrewAI] = useState(false)
+  const [crewAIAvailable, setCrewAIAvailable] = useState(false)
 
   useEffect(() => {
     loadModels()
@@ -86,6 +88,15 @@ export default function Home() {
       if (data.models && data.models.length > 0) {
         setSelectedModel(data.models[0].name)
       }
+
+      // Check CrewAI availability
+      try {
+        const crewRes = await fetch(`${apiUrl}/api/crewai/health`)
+        const crewData = await crewRes.json()
+        setCrewAIAvailable(crewData.available === true)
+      } catch {
+        setCrewAIAvailable(false)
+      }
     } catch (error) {
       console.error('Failed to load models:', error)
       toast.error('Failed to load models')
@@ -98,7 +109,7 @@ export default function Home() {
       return
     }
 
-    if (!selectedModel) {
+    if (!useCrewAI && !selectedModel) {
       toast.error('Please select a model')
       return
     }
@@ -108,7 +119,9 @@ export default function Home() {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/generate`, {
+      const endpoint = useCrewAI ? '/api/generate-crewai' : '/api/generate'
+
+      const response = await fetch(`${apiUrl}${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -239,6 +252,33 @@ export default function Home() {
                 placeholder="My Awesome Project"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
+            </div>
+
+            {/* Engine Selection */}
+            <div className="p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h3 className="text-sm font-semibold text-purple-900">Generation Engine</h3>
+                  <p className="text-xs text-purple-600">
+                    {useCrewAI ? '🤖 LangGraph (Multi-Agent)' : '⚡ TypeScript (Fast)'}
+                  </p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={useCrewAI}
+                    onChange={(e) => setUseCrewAI(e.target.checked)}
+                    disabled={!crewAIAvailable}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50"></div>
+                </label>
+              </div>
+              {!crewAIAvailable && (
+                <p className="text-xs text-orange-600 mt-2">
+                  ⚠️ LangGraph service not running. Start it with: cd crewai-service && python server.py
+                </p>
+              )}
             </div>
 
             {/* Model Selection */}
