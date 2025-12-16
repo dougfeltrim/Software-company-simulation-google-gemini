@@ -92,14 +92,14 @@ export function ProjectViewer({ projectId, onRetry, onStop }: ProjectViewerProps
                             Stop
                         </button>
                     )}
-                    {onRetry && project.status === 'failed' && (
+                    {onRetry && project.status !== 'in-progress' && (
                         <button
                             onClick={() => onRetry(project)}
-                            className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors flex items-center gap-1.5 bg-white"
-                            title="Retry failed project"
+                            className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors flex items-center gap-1.5 bg-white"
+                            title="Re-run this project with the same settings"
                         >
                             <RotateCw className="w-4 h-4" />
-                            Retry Failed Task
+                            Re-run
                         </button>
                     )}
                     <span className={`px-2.5 py-1 rounded-full text-xs font-medium uppercase tracking-wide border ${getStatusColor(project.status)}`}>
