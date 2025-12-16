@@ -55,32 +55,32 @@ export function ProjectHistory({ onSelectProject }: ProjectHistoryProps) {
   }
 
   const getStatusIcon = (status: string) => {
-    if (status === 'success') return <CheckCircle className="w-4 h-4 text-green-500" />
-    if (status === 'failed') return <XCircle className="w-4 h-4 text-red-500" />
-    return <Clock className="w-4 h-4 text-blue-500 animate-spin" />
+    if (status === 'success') return <CheckCircle className="w-4 h-4 text-green-400" />
+    if (status === 'failed') return <XCircle className="w-4 h-4 text-red-400" />
+    return <Clock className="w-4 h-4 text-blue-400 animate-spin" />
   }
 
   const getStatusColor = (status: string) => {
-    if (status === 'success') return 'bg-green-50 border-green-200'
-    if (status === 'failed') return 'bg-red-50 border-red-200'
-    return 'bg-blue-50 border-blue-200'
+    if (status === 'success') return 'bg-green-900/30 border-green-500/30 hover:bg-green-900/40'
+    if (status === 'failed') return 'bg-red-900/30 border-red-500/30 hover:bg-red-900/40'
+    return 'bg-blue-900/30 border-blue-500/30 hover:bg-blue-900/40'
   }
 
   if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <div className="text-gray-500">Loading history...</div>
+        <div className="text-muted">Loading history...</div>
       </div>
     )
   }
 
   return (
-    <div className="h-full flex flex-col">
-      <h2 className="text-lg font-semibold mb-4">Project History</h2>
+    <div className="h-full flex flex-col min-h-0 overflow-hidden">
+      <h2 className="text-base font-semibold mb-3 text-foreground shrink-0">Project History</h2>
 
-      <div className="flex-1 overflow-y-auto space-y-3">
+      <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
         {projects.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">
+          <div className="text-center py-8 text-muted">
             No projects yet. Create your first project!
           </div>
         ) : (
@@ -88,21 +88,21 @@ export function ProjectHistory({ onSelectProject }: ProjectHistoryProps) {
             <div
               key={project.id}
               onClick={() => onSelectProject?.(project.id)}
-              className={`p-4 rounded-lg border ${getStatusColor(project.status)} cursor-pointer hover:shadow-md transition-all`}
+              className={`p-4 rounded-xl border ${getStatusColor(project.status)} cursor-pointer transition-all`}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     {getStatusIcon(project.status)}
-                    <h3 className="font-medium truncate">{project.name}</h3>
+                    <h3 className="font-medium truncate text-foreground">{project.name}</h3>
                   </div>
 
-                  <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                  <p className="text-sm text-muted line-clamp-2 mb-2">
                     {project.description}
                   </p>
 
-                  <div className="flex flex-wrap gap-2 text-xs text-gray-500">
-                    <span className="bg-white px-2 py-1 rounded">
+                  <div className="flex flex-wrap gap-2 text-xs text-muted">
+                    <span className="bg-background/50 px-2 py-1 rounded-lg border border-border">
                       {project.model}
                     </span>
                     <span>
@@ -116,7 +116,7 @@ export function ProjectHistory({ onSelectProject }: ProjectHistoryProps) {
                   </div>
 
                   {project.error && (
-                    <div className="mt-2 text-xs text-red-600">
+                    <div className="mt-2 text-xs text-red-400">
                       Error: {project.error}
                     </div>
                   )}
@@ -124,10 +124,10 @@ export function ProjectHistory({ onSelectProject }: ProjectHistoryProps) {
 
                 <button
                   onClick={(e) => deleteProject(project.id, e)}
-                  className="p-2 hover:bg-white rounded-lg transition-colors"
+                  className="p-2 hover:bg-background/50 rounded-lg transition-colors"
                   title="Delete project"
                 >
-                  <Trash2 className="w-4 h-4 text-gray-500" />
+                  <Trash2 className="w-4 h-4 text-muted hover:text-red-400" />
                 </button>
               </div>
             </div>
@@ -137,3 +137,4 @@ export function ProjectHistory({ onSelectProject }: ProjectHistoryProps) {
     </div>
   )
 }
+

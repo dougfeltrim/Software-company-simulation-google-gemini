@@ -43,13 +43,37 @@ class GenerateResponse(BaseModel):
     message: str
 
 
-async def broadcast_log(message: str):
+async def broadcast_log(message: str, agent_id: str = None, status: str = None):
     """Send log message to all connected WebSocket clients"""
     if connected_clients:
-        data = json.dumps({"type": "log", "message": message})
+        data = {"type": "log", "message": message}
+        
+        # If agent info is provided, include it
+        if agent_id:
+            data["agent_id"] = agent_id
+            data["status"] = status or "active"
+        
+        json_data = json.dumps(data)
         for client in connected_clients.copy():
             try:
-                await client.send_text(data)
+                await client.send_text(json_data)
+            except:
+                connected_clients.remove(client)
+
+
+async def broadcast_agent_update(agent_id: str, status: str, metrics: dict = None):
+    """Send agent state update to all connected WebSocket clients"""
+    if connected_clients:
+        data = {
+            "type": "agent_update",
+            "agent": agent_id,
+            "status": status,
+            "metrics": metrics or {}
+        }
+        json_data = json.dumps(data)
+        for client in connected_clients.copy():
+            try:
+                await client.send_text(json_data)
             except:
                 connected_clients.remove(client)
 
@@ -73,11 +97,11 @@ async def websocket_endpoint(websocket: WebSocket):
         connected_clients.remove(websocket)
 
 
-def run_graph_generation(name: str, description: str, model: str | None, log_callback):
+def run_graph_generation(name: str, description: str, model: str | None, log_callback, agent_callback=None):
     """Run LangGraph generation"""
     from graph import SoftwareCompanyGraph
     
-    graph = SoftwareCompanyGraph(model=model, on_log=log_callback)
+    graph = SoftwareCompanyGraph(model=model, on_log=log_callback, on_agent_update=agent_callback)
     return graph.generate_project(name, description)
 
 
@@ -87,11 +111,17 @@ async def generate_project(request: GenerateRequest):
     project_id = f"{request.name.lower().replace(' ', '-')}-{int(asyncio.get_event_loop().time())}"
     
     logs = []
+    agent_updates = []
     
     def sync_log(message: str):
         """Sync log wrapper"""
-        logs.append(message)
+        logs.append({"type": "log", "message": message})
         print(message)  # Also print to console
+    
+    def sync_agent_update(agent_id: str, status: str, metrics: dict):
+        """Sync agent update wrapper"""
+        agent_updates.append({"agent": agent_id, "status": status, "metrics": metrics})
+        print(f"[Agent] {agent_id}: {status}")
     
     try:
         await broadcast_log(f"📦 Starting LangGraph generation for: {request.name}")
@@ -100,12 +130,15 @@ async def generate_project(request: GenerateRequest):
         
         result = await loop.run_in_executor(
             None,
-            lambda: run_graph_generation(request.name, request.description, request.model, sync_log)
+            lambda: run_graph_generation(request.name, request.description, request.model, sync_log, sync_agent_update)
         )
         
-        # Broadcast collected logs
-        for log in logs:
-            await broadcast_log(log)
+        # Broadcast collected logs and agent updates
+        for log_entry in logs:
+            await broadcast_log(log_entry["message"])
+        
+        for agent_update in agent_updates:
+            await broadcast_agent_update(agent_update["agent"], agent_update["status"], agent_update["metrics"])
         
         await broadcast_log(f"✅ LangGraph generation complete!")
         

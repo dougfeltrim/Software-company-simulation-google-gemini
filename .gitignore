@@ -13,17 +13,11 @@ build/
 .next/
 out/
 
-# Python (legacy)
+# Python (crewai-service)
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
-.Python
-
-# Virtual Environment
 venv/
-env/
-ENV/
 
 # IDE
 .vscode/
@@ -36,7 +30,7 @@ ENV/
 .env
 .env.local
 
-# Docker
+# Logs
 *.log
 
 # Generated files
@@ -46,8 +40,3 @@ output/
 # OS
 .DS_Store
 Thumbs.db
-
-# Gradio (legacy)
-gradio_cached_examples/
-flagged/
-generated-projects/

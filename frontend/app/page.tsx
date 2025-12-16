@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { Send, Sparkles, Square } from 'lucide-react'
 import { RealtimeLogs } from '@/components/RealtimeLogs'
 import { ProjectHistory } from '@/components/ProjectHistory'
-
+import { AgentFlowViewer } from '@/components/AgentFlowViewer'
 import { ProjectViewer } from '@/components/ProjectViewer'
 
 interface ModelConfig {
@@ -47,9 +47,6 @@ export default function Home() {
           // Sync generating state with project status
           const isRunning = data.project.status === 'in-progress'
           setGenerating(isRunning)
-
-          // Also update form if needed, but maybe annoying if user is editing. 
-          // Let's just sync status for now.
         }
       } catch (e) {
         console.error('Poll error', e)
@@ -68,12 +65,6 @@ export default function Home() {
   useEffect(() => {
     if (activeProjectId) {
       // ... existing auto-fill logic ...
-      // actually, let's just leave the existing one alone or merge?
-      // The existing one does: fetch -> setProjectName, setDescription, setSelectedModel
-      // We can leave it as "initial load" logic. 
-      // But wait, if I select a project, it sets ID.
-      // Then the polling starts.
-      // The auto-fill also runs.
     }
   }, [activeProjectId, models])
 
@@ -221,28 +212,28 @@ export default function Home() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Header */}
-      <header className="bg-white border-b px-6 py-4">
+      <header className="bg-card border-b border-border px-4 py-3 shrink-0">
         <div className="flex items-center gap-3">
-          <Sparkles className="w-8 h-8 text-blue-600" />
+          <Sparkles className="w-7 h-7 text-accent" />
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">AI Software Company</h1>
-            <p className="text-sm text-gray-600">Create complete projects with Ollama</p>
+            <h1 className="text-xl font-bold text-foreground">AI Software Company</h1>
+            <p className="text-xs text-muted">Create complete projects with Ollama</p>
           </div>
         </div>
       </header>
 
-      {/* Main Content - Split Screen */}
-      <div className="flex-1 grid grid-cols-3 gap-6 p-6 overflow-hidden">
+      {/* Main Content - Responsive Layout */}
+      <div className="flex-1 flex flex-col lg:flex-row gap-3 p-3 min-h-0 overflow-hidden">
         {/* Left Panel - Form */}
-        <div className="bg-white rounded-lg shadow-sm p-6 overflow-y-auto">
-          <h2 className="text-xl font-semibold mb-6">Create New Project</h2>
+        <div className="bg-card rounded-xl border border-border p-4 overflow-y-auto shrink-0 lg:w-80 xl:w-96 max-h-[40vh] lg:max-h-full">
+          <h2 className="text-lg font-semibold mb-4 text-foreground">Create New Project</h2>
 
           <div className="space-y-4">
             {/* Project Name */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted mb-2">
                 Project Name (optional)
               </label>
               <input
@@ -250,52 +241,79 @@ export default function Home() {
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
                 placeholder="My Awesome Project"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent text-foreground placeholder:text-muted/50 transition-all"
               />
             </div>
 
             {/* Engine Selection */}
-            <div className="p-3 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-sm font-semibold text-purple-900">Generation Engine</h3>
-                  <p className="text-xs text-purple-600">
-                    {useCrewAI ? '🤖 LangGraph (Multi-Agent)' : '⚡ TypeScript (Fast)'}
+            <div>
+              <label className="block text-sm font-medium text-muted mb-2">
+                Generation Engine
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {/* TypeScript Option */}
+                <button
+                  type="button"
+                  onClick={() => setUseCrewAI(false)}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${!useCrewAI
+                    ? 'border-accent bg-accent/10 ring-1 ring-accent/30'
+                    : 'border-border bg-background hover:border-muted/50'
+                    }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">⚡</span>
+                    <span className={`text-sm font-semibold ${!useCrewAI ? 'text-accent' : 'text-foreground'}`}>
+                      TypeScript
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted">Rápido e direto</p>
+                </button>
+
+                {/* LangGraph Option */}
+                <button
+                  type="button"
+                  onClick={() => crewAIAvailable && setUseCrewAI(true)}
+                  disabled={!crewAIAvailable}
+                  className={`p-3 rounded-xl border-2 text-left transition-all ${useCrewAI
+                    ? 'border-purple-500 bg-purple-500/10 ring-1 ring-purple-500/30'
+                    : crewAIAvailable
+                      ? 'border-border bg-background hover:border-muted/50'
+                      : 'border-border bg-background opacity-50 cursor-not-allowed'
+                    }`}
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-lg">🤖</span>
+                    <span className={`text-sm font-semibold ${useCrewAI ? 'text-purple-400' : 'text-foreground'}`}>
+                      LangGraph
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted">
+                    {crewAIAvailable ? 'Multi-agente IA' : 'Não disponível'}
                   </p>
-                </div>
-                <label className="relative inline-flex items-center cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={useCrewAI}
-                    onChange={(e) => setUseCrewAI(e.target.checked)}
-                    disabled={!crewAIAvailable}
-                    className="sr-only peer"
-                  />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600 peer-disabled:opacity-50"></div>
-                </label>
+                </button>
               </div>
               {!crewAIAvailable && (
-                <p className="text-xs text-orange-600 mt-2">
-                  ⚠️ LangGraph service not running. Start it with: cd crewai-service && python server.py
+                <p className="text-xs text-orange-400 mt-2">
+                  ⚠️ LangGraph offline. Inicie: cd crewai-service && python server.py
                 </p>
               )}
             </div>
 
             {/* Model Selection */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted mb-2">
                 Select Model
               </label>
               <select
                 value={selectedModel}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent text-foreground transition-all"
               >
                 {Object.entries(modelsByCategory).map(([category, categoryModels]) => (
                   categoryModels.length > 0 && (
-                    <optgroup key={category} label={category.toUpperCase()}>
+                    <optgroup key={category} label={category.toUpperCase()} className="bg-card">
                       {categoryModels.map((model) => (
-                        <option key={model.name} value={model.name}>
+                        <option key={model.name} value={model.name} className="bg-card">
                           {model.displayName}
                         </option>
                       ))}
@@ -304,7 +322,7 @@ export default function Home() {
                 ))}
               </select>
               {selectedModel && (
-                <p className="mt-1 text-xs text-gray-500">
+                <p className="mt-1.5 text-xs text-muted">
                   {models.find(m => m.name === selectedModel)?.description}
                 </p>
               )}
@@ -312,15 +330,15 @@ export default function Home() {
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
+              <label className="block text-sm font-medium text-muted mb-2">
                 Project Description
               </label>
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Describe what you want to build... Be specific!"
-                rows={8}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                rows={4}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent resize-none text-foreground placeholder:text-muted/50 transition-all text-sm"
               />
             </div>
 
@@ -328,7 +346,7 @@ export default function Home() {
             {generating ? (
               <button
                 onClick={handleStop}
-                className="w-full bg-red-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-red-700 flex items-center justify-center gap-2 transition-colors"
+                className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-600/20"
               >
                 <Square className="w-5 h-5 fill-current" />
                 Stop Generation
@@ -337,56 +355,33 @@ export default function Home() {
               <button
                 onClick={handleGenerate}
                 disabled={!description.trim()}
-                className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-colors"
+                className="w-full bg-accent hover:bg-accent-hover text-white py-3 px-6 rounded-lg font-medium disabled:bg-gray-700 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-lg shadow-accent/20 disabled:shadow-none"
               >
                 <Send className="w-5 h-5" />
                 Generate Project
               </button>
             )}
-
-            {/* Emergency Controls */}
-            <div className="mt-8 pt-6 border-t">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">
-                Emergency Controls
-              </h3>
-              <div className="grid grid-cols-2 gap-3">
-                <button
-                  onClick={handleForceStop}
-                  className="px-3 py-2 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs font-semibold transition-colors"
-                  title="Stop all running projects immediately"
-                >
-                  Force Stop All
-                </button>
-                <button
-                  onClick={handleReset}
-                  className="px-3 py-2 bg-orange-100 text-orange-800 rounded hover:bg-orange-200 text-xs font-semibold transition-colors"
-                  title="Clear internal state and mark stuck projects as failed"
-                >
-                  System Reset
-                </button>
-              </div>
-            </div>
           </div>
         </div>
 
         {/* Middle Panel - Logs/Preview */}
-        <div className="bg-white rounded-lg shadow-sm p-6 overflow-hidden flex flex-col">
+        <div className="bg-card rounded-xl border border-border p-4 overflow-hidden flex flex-col flex-1 min-h-0 min-w-0">
           {/* Tabs */}
-          <div className="flex gap-2 mb-4 border-b">
+          <div className="flex gap-2 mb-4 border-b border-border">
             <button
               onClick={() => setActiveTab('logs')}
-              className={`px-4 py-2 font-medium transition-colors ${activeTab === 'logs'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
+              className={`px-4 py-2 font-medium transition-all ${activeTab === 'logs'
+                ? 'text-accent border-b-2 border-accent'
+                : 'text-muted hover:text-foreground'
                 }`}
             >
               Real-time Logs
             </button>
             <button
               onClick={() => setActiveTab('history')}
-              className={`px-4 py-2 font-medium transition-colors ${activeTab === 'history'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
+              className={`px-4 py-2 font-medium transition-all ${activeTab === 'history'
+                ? 'text-accent border-b-2 border-accent'
+                : 'text-muted hover:text-foreground'
                 }`}
             >
               Current Project
@@ -394,8 +389,22 @@ export default function Home() {
           </div>
 
           {/* Tab Content */}
-          <div className="flex-1 overflow-hidden">
-            {activeTab === 'logs' && <RealtimeLogs />}
+          <div className="flex-1 overflow-hidden min-h-0">
+            {activeTab === 'logs' && (
+              useCrewAI ? (
+                // Split view: Agent Flow + Logs
+                <div className="h-full flex flex-col lg:flex-row gap-3">
+                  <div className="flex-1 min-h-0 lg:max-w-[280px]">
+                    <AgentFlowViewer isRunning={generating} />
+                  </div>
+                  <div className="flex-1 min-h-0">
+                    <RealtimeLogs wsUrl="ws://localhost:3002" />
+                  </div>
+                </div>
+              ) : (
+                <RealtimeLogs />
+              )
+            )}
             {activeTab === 'history' && (
               activeProjectId ? (
                 <ProjectViewer
@@ -404,21 +413,15 @@ export default function Home() {
                   onRetry={(project) => {
                     setProjectName(project.name)
                     setDescription(project.description)
-                    // If model is available, use it, else keep default
                     if (models.some(m => m.name === project.model)) {
                       setSelectedModel(project.model)
                     }
-                    setActiveTab('logs') // Switch to logs to see re-run
-                    // We don't auto-submit to give user a chance to review, 
-                    // or we could calls handleGenerate() directly if we extract it.
-                    // User asked for "Re-executar", implying action.
-                    // But handleGenerate uses state that might not be updated yet.
-                    // Let's just fill form and switch tab.
+                    setActiveTab('logs')
                     toast.info('Project details loaded. Click Generate to re-run.')
                   }}
                 />
               ) : (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-8 text-muted">
                   Select a project from history or start a new one to view details
                 </div>
               )
@@ -427,10 +430,35 @@ export default function Home() {
         </div>
 
         {/* Right Panel - History */}
-        <div className="bg-white rounded-lg shadow-sm p-6 overflow-hidden">
-          <ProjectHistory onSelectProject={handleSelectProject} />
+        <div className="bg-card rounded-xl border border-border p-4 overflow-hidden shrink-0 lg:w-72 xl:w-80 max-h-[30vh] lg:max-h-full flex flex-col">
+          {/* Emergency Controls */}
+          <div className="pb-3 mb-3 border-b border-border shrink-0">
+            <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
+              Emergency Controls
+            </h3>
+            <div className="flex gap-2">
+              <button
+                onClick={handleForceStop}
+                className="flex-1 px-2 py-1.5 bg-red-900/30 text-red-400 rounded-lg hover:bg-red-900/50 text-xs font-semibold transition-colors border border-red-500/20"
+                title="Stop all running projects immediately"
+              >
+                Force Stop
+              </button>
+              <button
+                onClick={handleReset}
+                className="flex-1 px-2 py-1.5 bg-orange-900/30 text-orange-400 rounded-lg hover:bg-orange-900/50 text-xs font-semibold transition-colors border border-orange-500/20"
+                title="Clear internal state and mark stuck projects as failed"
+              >
+                Reset
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-hidden min-h-0">
+            <ProjectHistory onSelectProject={handleSelectProject} />
+          </div>
         </div>
       </div>
     </div>
   )
 }
+

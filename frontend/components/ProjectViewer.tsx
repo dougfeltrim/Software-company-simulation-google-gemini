@@ -61,31 +61,31 @@ export function ProjectViewer({ projectId, onRetry, onStop }: ProjectViewerProps
     }
 
     if (!project) {
-        return <div className="p-4 text-center text-gray-500">Loading project...</div>
+        return <div className="p-4 text-center text-muted">Loading project...</div>
     }
 
     const getStatusColor = (status: string) => {
         switch (status) {
-            case 'success': return 'bg-green-100 text-green-800'
-            case 'failed': return 'bg-red-100 text-red-800'
-            case 'in-progress': return 'bg-blue-100 text-blue-800'
-            default: return 'bg-gray-100 text-gray-800'
+            case 'success': return 'bg-green-900/40 text-green-300 border-green-500/30'
+            case 'failed': return 'bg-red-900/40 text-red-300 border-red-500/30'
+            case 'in-progress': return 'bg-blue-900/40 text-blue-300 border-blue-500/30'
+            default: return 'bg-gray-800 text-gray-300 border-gray-600'
         }
     }
 
     return (
-        <div className="h-full flex flex-col border rounded-lg overflow-hidden bg-white">
+        <div className="h-full flex flex-col border border-border rounded-xl overflow-hidden bg-card">
             {/* Project Header */}
-            <div className="p-4 border-b bg-gray-50 flex justify-between items-start">
+            <div className="p-4 border-b border-border bg-background flex justify-between items-start">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-900 leading-tight">{project.name}</h2>
-                    <p className="text-gray-500 text-sm mt-1 line-clamp-2">{project.description}</p>
+                    <h2 className="text-xl font-bold text-foreground leading-tight">{project.name}</h2>
+                    <p className="text-muted text-sm mt-1 line-clamp-2">{project.description}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 ml-4">
                     {onStop && project.status === 'in-progress' && (
                         <button
                             onClick={onStop}
-                            className="px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors flex items-center gap-1.5 bg-white"
+                            className="px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-900/30 border border-red-500/30 rounded-lg transition-colors flex items-center gap-1.5 bg-transparent"
                             title="Stop currently running generation"
                         >
                             <Square className="w-4 h-4 fill-current" />
@@ -95,7 +95,7 @@ export function ProjectViewer({ projectId, onRetry, onStop }: ProjectViewerProps
                     {onRetry && project.status !== 'in-progress' && (
                         <button
                             onClick={() => onRetry(project)}
-                            className="px-3 py-1.5 text-sm font-medium text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors flex items-center gap-1.5 bg-white"
+                            className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent/10 border border-accent/30 rounded-lg transition-colors flex items-center gap-1.5 bg-transparent"
                             title="Re-run this project with the same settings"
                         >
                             <RotateCw className="w-4 h-4" />
@@ -111,8 +111,8 @@ export function ProjectViewer({ projectId, onRetry, onStop }: ProjectViewerProps
             {/* Content Area */}
             <div className="flex-1 flex flex-col md:flex-row min-h-0">
                 {/* File List Sidebar */}
-                <div className="w-full md:w-64 bg-gray-50 border-r overflow-y-auto">
-                    <div className="p-3 font-medium border-b text-sm text-gray-700 bg-white">
+                <div className="w-full md:w-64 bg-background border-r border-border overflow-y-auto">
+                    <div className="p-3 font-medium border-b border-border text-sm text-muted bg-card">
                         Files
                     </div>
                     <div className="p-2 space-y-1">
@@ -120,9 +120,9 @@ export function ProjectViewer({ projectId, onRetry, onStop }: ProjectViewerProps
                             <button
                                 key={file}
                                 onClick={() => selectFile(file)}
-                                className={`w-full text-left px-3 py-2 rounded text-sm flex items-center gap-2 transition-colors ${selectedFile === file
-                                    ? 'bg-blue-100 text-blue-700 font-medium'
-                                    : 'hover:bg-gray-100 text-gray-700'
+                                className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${selectedFile === file
+                                    ? 'bg-accent/20 text-accent font-medium'
+                                    : 'hover:bg-card-hover text-muted'
                                     }`}
                             >
                                 <File className="w-4 h-4 flex-shrink-0" />
@@ -133,24 +133,24 @@ export function ProjectViewer({ projectId, onRetry, onStop }: ProjectViewerProps
                 </div>
 
                 {/* Code Viewer */}
-                <div className="flex-1 flex flex-col min-h-0 bg-white">
+                <div className="flex-1 flex flex-col min-h-0 bg-background">
                     {selectedFile ? (
                         <>
-                            <div className="p-3 border-b flex items-center justify-between bg-white shrink-0">
-                                <span className="font-mono text-sm font-medium text-gray-700">
+                            <div className="p-3 border-b border-border flex items-center justify-between bg-card shrink-0">
+                                <span className="font-mono text-sm font-medium text-muted">
                                     {selectedFile}
                                 </span>
                             </div>
-                            <div className="flex-1 overflow-auto bg-gray-900 text-gray-100 p-4 font-mono text-sm whitespace-pre">
+                            <div className="flex-1 overflow-auto bg-gray-950 text-gray-100 p-4 font-mono text-sm whitespace-pre">
                                 {loadingFile ? (
-                                    <div className="text-gray-400">Loading content...</div>
+                                    <div className="text-muted">Loading content...</div>
                                 ) : (
                                     fileContent
                                 )}
                             </div>
                         </>
                     ) : (
-                        <div className="flex-1 flex items-center justify-center text-gray-400 bg-gray-50/50">
+                        <div className="flex-1 flex items-center justify-center text-muted bg-background">
                             Select a file to view content
                         </div>
                     )}
@@ -159,3 +159,4 @@ export function ProjectViewer({ projectId, onRetry, onStop }: ProjectViewerProps
         </div>
     )
 }
+

@@ -7,8 +7,9 @@ A modern, real-time software company simulation using only local Ollama models. 
 ## ✨ Features
 
 - 🤖 **100% Local with Ollama** - No API keys, completely offline
+- ⚡ **Dual Generation Engine** - Choose between fast TypeScript generation or advanced LangGraph Multi-Agent system
 - 🎨 **Modern Split-Screen Interface** - Three-panel layout for efficient workflow
-- 📊 **Real-time Logs** - Watch your project being created live via WebSocket
+- 📊 **Real-time Logs & Visualization** - Watch logs and visualized agent workflows live
 - 📚 **Project History** - Track all your projects with full details
 - 🔔 **Toast Notifications** - Get notified when projects start, succeed, or fail
 - 🚀 **10 Real Ollama Models** - Choose from code, thinking, and general models (up to 14B)
@@ -112,34 +113,20 @@ A modern, real-time software company simulation using only local Ollama models. 
 ```
 /
 ├── backend/                  # Express.js backend
-│   ├── src/
-│   │   ├── lib/
-│   │   │   ├── config.ts            # Ollama configuration
-│   │   │   ├── providers/
-│   │   │   │   └── ollama.ts        # Unified Ollama provider
-│   │   │   ├── services/
-│   │   │   │   ├── logger.ts        # Real-time logging
-│   │   │   │   └── history.ts       # Project history
-│   │   │   └── agents/
-│   │   │       ├── base.ts          # Base agent class
-│   │   │       ├── product-manager.ts
-│   │   │       └── developer.ts
-│   │   └── index.ts                 # Express server
-│   ├── package.json
-│   └── tsconfig.json
+│   └── src/                  # TypeScript source code
 ├── frontend/                 # Next.js frontend
-│   ├── app/
-│   │   ├── page.tsx                 # Main split-screen interface
-│   │   ├── layout.tsx
-│   │   └── globals.css
-│   ├── components/
-│   │   ├── RealtimeLogs.tsx         # Live log viewer
-│   │   └── ProjectHistory.tsx       # History panel
-│   ├── package.json
-│   └── tsconfig.json
+│   ├── app/                  # Next.js App Router
+│   └── components/           # React components
+├── crewai-service/           # Python/LangGraph multi-agent service
+│   ├── graph.py              # LangGraph workflow
+│   ├── agents.py             # Agent definitions
+│   └── server.py             # FastAPI server
+├── docs/                     # Documentation
+│   ├── ARCHITECTURE.md       # System architecture
+│   ├── DEVELOPMENT.md        # Developer guide
+│   └── QUICKSTART.md         # Quick start guide
 ├── generated/                # Generated projects (gitignored)
-├── package.json              # Root package
-├── .env.example
+├── package.json              # Root workspace
 └── README.md
 ```
 

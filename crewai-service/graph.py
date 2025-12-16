@@ -26,7 +26,7 @@ class ProjectState(TypedDict):
 
 def get_llm(model: str = None):
     """Get Ollama LLM instance"""
-    model_name = model or os.getenv("DEFAULT_MODEL", "gemma3:4b")
+    model_name = model or os.getenv("DEFAULT_MODEL", "llama3.1:8b")
     ollama_host = os.getenv("OLLAMA_HOST", "http://localhost:11434")
     
     return ChatOllama(
@@ -41,15 +41,21 @@ class SoftwareCompanyGraph:
     A LangGraph-based multi-agent system for generating software projects.
     """
     
-    def __init__(self, model: str = None, on_log: Optional[Callable[[str], None]] = None):
+    def __init__(self, model: str = None, on_log: Optional[Callable[[str], None]] = None, on_agent_update: Optional[Callable[[str, str, dict], None]] = None):
         self.model = model
         self.on_log = on_log or print
+        self.on_agent_update = on_agent_update  # callback(agent_id, status, metrics)
         self.llm = get_llm(model)
         self.graph = self._build_graph()
     
     def log(self, message: str):
         """Send log message to callback"""
         self.on_log(message)
+    
+    def update_agent(self, agent_id: str, status: str, metrics: dict = None):
+        """Send agent state update"""
+        if self.on_agent_update:
+            self.on_agent_update(agent_id, status, metrics or {})
     
     def _build_graph(self) -> StateGraph:
         """Build the LangGraph workflow"""
@@ -81,6 +87,7 @@ class SoftwareCompanyGraph:
     
     def _analyze_requirements(self, state: ProjectState) -> ProjectState:
         """Product Manager: Analyze requirements"""
+        self.update_agent("analyze", "active")
         self.log("📋 Product Manager: Analyzing requirements...")
         
         prompt = f"""You are an experienced Product Manager. Analyze this project request and create detailed requirements.
@@ -96,10 +103,17 @@ Create detailed requirements including:
 
 Be specific and actionable."""
 
-        response = self.llm.invoke(prompt)
-        requirements = response.content
+        try:
+            response = self.llm.invoke(prompt)
+            requirements = response.content
+        except Exception as e:
+            self.log(f"❌ Error invoking LLM: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            raise e
         
         self.log(f"✅ Requirements analyzed ({len(requirements)} chars)")
+        self.update_agent("analyze", "completed")
         
         return {
             **state,
@@ -109,6 +123,7 @@ Be specific and actionable."""
     
     def _plan_structure(self, state: ProjectState) -> ProjectState:
         """Product Manager: Plan file structure"""
+        self.update_agent("plan", "active")
         self.log("📁 Product Manager: Planning file structure...")
         
         prompt = f"""Based on these requirements, create a JSON file structure.
@@ -125,7 +140,15 @@ Output ONLY a valid JSON array with files to create:
 
 Include all necessary files for a complete project."""
 
-        response = self.llm.invoke(prompt)
+
+
+        try:
+            response = self.llm.invoke(prompt)
+        except Exception as e:
+            self.log(f"❌ Error invoking LLM (planning): {str(e)}")
+            # Fallback response so we don't crash entirely? Or just re-raise.
+            # Re-raising is safer for now to expose the error.
+            raise e
         
         # Parse JSON from response
         try:
@@ -146,6 +169,7 @@ Include all necessary files for a complete project."""
             ]
         
         self.log(f"✅ Planned {len(file_structure)} files")
+        self.update_agent("plan", "completed", {"files": len(file_structure)})
         
         return {
             **state,
@@ -161,6 +185,7 @@ Include all necessary files for a complete project."""
         file_path = file_info["path"]
         file_desc = file_info.get("description", "")
         
+        self.update_agent("generate", "active", {"file": file_path, "index": idx + 1, "total": len(state["file_structure"])})
         self.log(f"💻 Developer: Generating {file_path}...")
         
         prompt = f"""You are a senior developer. Generate the complete code for this file.
@@ -174,7 +199,13 @@ Project Requirements:
 Write production-ready code. Output ONLY the code, no explanations.
 Include proper structure, comments, and best practices."""
 
-        response = self.llm.invoke(prompt)
+
+
+        try:
+            response = self.llm.invoke(prompt)
+        except Exception as e:
+            self.log(f"❌ Error invoking LLM (generation): {str(e)}")
+            raise e
         
         # Clean the code (remove markdown blocks)
         code = response.content
@@ -204,7 +235,10 @@ Include proper structure, comments, and best practices."""
     
     def _finalize(self, state: ProjectState) -> ProjectState:
         """Finalize the project"""
+        self.update_agent("generate", "completed", {"files": len(state["generated_files"])})
+        self.update_agent("finalize", "active")
         self.log(f"🎉 Project '{state['name']}' completed with {len(state['generated_files'])} files!")
+        self.update_agent("finalize", "completed")
         
         return {
             **state,
