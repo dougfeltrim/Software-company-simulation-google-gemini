@@ -1,14 +1,17 @@
-# CrewAI Service - Requirements (Simplified)
+# LangGraph Service Requirements
 
 # Core
-crewai==0.11.2
 langchain-ollama
+langgraph
+langchain
+langchain-community
+langchain-core
 
 # Web Server
-fastapi==0.109.0
-uvicorn==0.27.0
-websockets==12.0
+fastapi
+uvicorn
+websockets
 
 # Utilities
-python-dotenv==1.0.0
-pydantic==2.5.3
+python-dotenv
+pydantic

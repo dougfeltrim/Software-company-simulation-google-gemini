@@ -52,7 +52,6 @@ app.get('/api/health', async (req: Request, res: Response) => {
 });
 
 // Get available models
-// Get available models
 app.get('/api/models', async (req: Request, res: Response) => {
   try {
     const realModels = await ollamaProvider.listModels();
@@ -74,12 +73,9 @@ app.get('/api/models', async (req: Request, res: Response) => {
       };
     });
 
-    res.json({
-      models: mappedModels,
-    });
+    res.json({ models: mappedModels });
   } catch (error) {
-    console.error('Failed to list models:', error);
-    // Fallback to static list if Ollama is down, but maybe empty is better?
+    console.error('Failed to fetch models:', error);
     // The user requirement implies strictly showing what is online. 
     // If we fail to fetch, we probably show nothing or an error.
     res.status(500).json({ error: 'Failed to fetch models from Ollama' });
@@ -192,10 +188,11 @@ app.post('/api/reset', async (req, res) => {
   activeCancellations.clear();
   logger.clearLogs();
 
-  // 2. Clear DB state
+  // 2. Reset history status if needed
+  // We can't easily "un-save" files, but we can mark in-progress tasks as failed in history.json
   const resetCount = await historyService.resetInProgressProjects();
 
-  logger.logStatus(`[System] Reset complete. Cleared ${resetCount} stuck projects.`);
+  logger.logStatus(`[System] Reset complete. ${resetCount} in-progress projects marked as failed.`);
   res.json({ message: 'System reset active', resetCount });
 });
 
@@ -235,7 +232,9 @@ app.post('/api/generate-crewai', async (req: Request, res: Response) => {
     });
   }
 
-  const projectName = name || `LangGraph-Project-${Date.now()}`;
+  let projectName = name || `LangGraph-Project-${Date.now()}`;
+  // Sanitize for Windows (remove colons, etc)
+  projectName = projectName.replace(/[:"<>|?*]/g, '-').replace(/[\/\\]/g, '-');
 
   try {
     logger.clearLogs();
@@ -322,7 +321,8 @@ async function generateWithLangGraph(
     }
 
     // Complete project
-    await historyService.completeProject(projectId, filesGenerated, projectDir);
+    const projectLogs = logger.getRecentLogs(1000).map(l => l.message || '').filter(Boolean);
+    await historyService.completeProject(projectId, filesGenerated, projectDir, projectLogs);
     logger.logProgress(`🎉 Project completed with ${filesGenerated.length} files!`, 100);
     logger.logStatus(`✅ LangGraph project "${name}" completed successfully`);
 
@@ -346,7 +346,10 @@ app.post('/api/generate', async (req: Request, res: Response) => {
     });
   }
 
-  const projectName = name || `Project-${Date.now()}`;
+  let projectName = name || `Project-${Date.now()}`;
+  // Sanitize
+  projectName = projectName.replace(/[:"<>|?*]/g, '-').replace(/[\/\\]/g, '-');
+
 
   try {
     logger.clearLogs(); // Clear previous logs
@@ -440,7 +443,15 @@ async function generateProject(
       logger.logProgress(`Generating ${file.path}...`, progress);
 
       try {
-        const fileContext = `Project: ${name}\n\nGlobal Requirements:\n${requirements}\n\nFile Description (${file.path}): ${file.description}\n\nThis file is part of a larger project. Ensure it integrates well.`;
+        const fileContext = `
+Project Name: ${name}
+Project Description: ${description}
+Requirements:
+${requirements}
+
+Current File: ${file.path}
+File Purpose: ${file.purpose}
+        `;
 
         const content = await dev.generateFile(file.path, fileContext);
 
@@ -465,10 +476,12 @@ async function generateProject(
     }
 
     // Complete project
+    const projectLogs = logger.getRecentLogs(1000).map(l => l.message || '').filter(Boolean);
     await historyService.completeProject(
       projectId,
       generatedFiles,
-      projectDir
+      projectDir,
+      projectLogs
     );
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);

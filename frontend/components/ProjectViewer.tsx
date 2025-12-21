@@ -1,162 +1,109 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { File, Folder, ChevronRight, ChevronDown, Download, RotateCw, Square } from 'lucide-react'
+import { Folder, FileCode, ChevronRight, Loader2, AlertCircle } from 'lucide-react'
 
-interface ProjectViewerProps {
-    projectId: string
-    onRetry?: (project: ProjectDetails) => void
-    onStop?: () => void
-}
-
-interface ProjectDetails {
+interface Project {
     id: string
     name: string
     description: string
-    status: 'success' | 'failed' | 'in-progress'
     filesGenerated: string[]
-    model: string
 }
 
-export function ProjectViewer({ projectId, onRetry, onStop }: ProjectViewerProps) {
-    const [project, setProject] = useState<ProjectDetails | null>(null)
+interface ProjectViewerProps {
+    project: Project
+}
+
+export function ProjectViewer({ project }: ProjectViewerProps) {
     const [selectedFile, setSelectedFile] = useState<string | null>(null)
     const [fileContent, setFileContent] = useState<string>('')
-    const [loadingFile, setLoadingFile] = useState(false)
+    const [loading, setLoading] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
+    // Select first file by default or README if available
     useEffect(() => {
-        loadProject()
-    }, [projectId])
-
-    const loadProject = async () => {
-        try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const response = await fetch(`${apiUrl}/api/history/${projectId}`)
-            const data = await response.json()
-            setProject(data.project)
-
-            // Select first file by default if available
-            if (data.project.filesGenerated.length > 0) {
-                selectFile(data.project.filesGenerated[0])
-            }
-        } catch (error) {
-            console.error('Failed to load project:', error)
+        if (project.filesGenerated.length > 0 && !selectedFile) {
+            const readme = project.filesGenerated.find(f => f.toLowerCase().includes('readme'))
+            handleFileSelect(readme || project.filesGenerated[0])
         }
-    }
+    }, [project])
 
-    const selectFile = async (filePath: string) => {
+    const handleFileSelect = async (filePath: string) => {
         setSelectedFile(filePath)
-        setLoadingFile(true)
+        setLoading(true)
+        setError(null)
         try {
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-            const response = await fetch(`${apiUrl}/api/history/${projectId}/file?path=${encodeURIComponent(filePath)}`)
-            const data = await response.json()
+            const res = await fetch(`http://localhost:3001/api/history/${project.id}/file?path=${encodeURIComponent(filePath)}`)
+            if (!res.ok) throw new Error('Failed to fetch file content')
+            const data = await res.json()
             setFileContent(data.content)
-        } catch (error) {
-            console.error('Failed to load file content:', error)
-            setFileContent('Error loading file content')
+        } catch (e) {
+            setError('Could not load file content')
         } finally {
-            setLoadingFile(false)
-        }
-    }
-
-    if (!project) {
-        return <div className="p-4 text-center text-muted">Loading project...</div>
-    }
-
-    const getStatusColor = (status: string) => {
-        switch (status) {
-            case 'success': return 'bg-green-900/40 text-green-300 border-green-500/30'
-            case 'failed': return 'bg-red-900/40 text-red-300 border-red-500/30'
-            case 'in-progress': return 'bg-blue-900/40 text-blue-300 border-blue-500/30'
-            default: return 'bg-gray-800 text-gray-300 border-gray-600'
+            setLoading(false)
         }
     }
 
     return (
-        <div className="h-full flex flex-col border border-border rounded-xl overflow-hidden bg-card">
-            {/* Project Header */}
-            <div className="p-4 border-b border-border bg-background flex justify-between items-start">
-                <div>
-                    <h2 className="text-xl font-bold text-foreground leading-tight">{project.name}</h2>
-                    <p className="text-muted text-sm mt-1 line-clamp-2">{project.description}</p>
+        <div className="h-full flex bg-background border border-border rounded-xl osverflow-hidden shadow-2xl">
+            {/* File Explorer */}
+            <div className="w-1/3 border-r border-border bg-card/20 flex flex-col min-w-[200px]">
+                <div className="p-3 border-b border-white/10 text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                    <Folder className="w-4 h-4 text-purple-400" />
+                    Project Files
                 </div>
-                <div className="flex items-center gap-2 shrink-0 ml-4">
-                    {onStop && project.status === 'in-progress' && (
-                        <button
-                            onClick={onStop}
-                            className="px-3 py-1.5 text-sm font-medium text-red-400 hover:bg-red-900/30 border border-red-500/30 rounded-lg transition-colors flex items-center gap-1.5 bg-transparent"
-                            title="Stop currently running generation"
-                        >
-                            <Square className="w-4 h-4 fill-current" />
-                            Stop
-                        </button>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1">
+                    {project.filesGenerated.length === 0 && (
+                        <div className="text-center text-xs text-muted-foreground py-10">
+                            No files found.
+                        </div>
                     )}
-                    {onRetry && project.status !== 'in-progress' && (
+                    {project.filesGenerated.map(file => (
                         <button
-                            onClick={() => onRetry(project)}
-                            className="px-3 py-1.5 text-sm font-medium text-accent hover:bg-accent/10 border border-accent/30 rounded-lg transition-colors flex items-center gap-1.5 bg-transparent"
-                            title="Re-run this project with the same settings"
+                            key={file}
+                            onClick={() => handleFileSelect(file)}
+                            className={`w-full text-left px-3 py-2 rounded text-xs truncate flex items-center gap-2 transition-colors ${selectedFile === file
+                                    ? 'bg-purple-500/20 text-purple-300 border border-purple-500/20'
+                                    : 'hover:bg-white/5 text-gray-400'
+                                }`}
                         >
-                            <RotateCw className="w-4 h-4" />
-                            Re-run
+                            <FileCode className="w-3.5 h-3.5 opacity-70" />
+                            {file}
                         </button>
-                    )}
-                    <span className={`px-2.5 py-1 rounded-full text-xs font-medium uppercase tracking-wide border ${getStatusColor(project.status)}`}>
-                        {project.status}
-                    </span>
+                    ))}
                 </div>
             </div>
 
-            {/* Content Area */}
-            <div className="flex-1 flex flex-col md:flex-row min-h-0">
-                {/* File List Sidebar */}
-                <div className="w-full md:w-64 bg-background border-r border-border overflow-y-auto">
-                    <div className="p-3 font-medium border-b border-border text-sm text-muted bg-card">
-                        Files
-                    </div>
-                    <div className="p-2 space-y-1">
-                        {project.filesGenerated.map((file) => (
-                            <button
-                                key={file}
-                                onClick={() => selectFile(file)}
-                                className={`w-full text-left px-3 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${selectedFile === file
-                                    ? 'bg-accent/20 text-accent font-medium'
-                                    : 'hover:bg-card-hover text-muted'
-                                    }`}
-                            >
-                                <File className="w-4 h-4 flex-shrink-0" />
-                                <span className="truncate">{file}</span>
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Code Viewer */}
-                <div className="flex-1 flex flex-col min-h-0 bg-background">
-                    {selectedFile ? (
-                        <>
-                            <div className="p-3 border-b border-border flex items-center justify-between bg-card shrink-0">
-                                <span className="font-mono text-sm font-medium text-muted">
-                                    {selectedFile}
-                                </span>
-                            </div>
-                            <div className="flex-1 overflow-auto bg-gray-950 text-gray-100 p-4 font-mono text-sm whitespace-pre">
-                                {loadingFile ? (
-                                    <div className="text-muted">Loading content...</div>
-                                ) : (
-                                    fileContent
-                                )}
-                            </div>
-                        </>
-                    ) : (
-                        <div className="flex-1 flex items-center justify-center text-muted bg-background">
-                            Select a file to view content
+            {/* Editor / Viewer */}
+            <div className="flex-1 flex flex-col bg-[#1e1e1e] min-w-0">
+                {selectedFile ? (
+                    <>
+                        <div className="h-9 border-b border-black/40 flex items-center px-4 bg-[#252526] text-xs text-gray-400 select-none">
+                            <span className="opacity-50 mr-2">PREVIEW:</span>
+                            {selectedFile}
                         </div>
-                    )}
-                </div>
+                        <div className="flex-1 overflow-auto p-4 font-mono text-sm leading-relaxed text-gray-300">
+                            {loading ? (
+                                <div className="flex items-center justify-center h-full text-gray-500 gap-2">
+                                    <Loader2 className="w-5 h-5 animate-spin" />
+                                    Loading...
+                                </div>
+                            ) : error ? (
+                                <div className="flex items-center justify-center h-full text-red-400 gap-2">
+                                    <AlertCircle className="w-5 h-5" />
+                                    {error}
+                                </div>
+                            ) : (
+                                <pre className="whitespace-pre-wrap decoration-rose-950">{fileContent}</pre>
+                            )}
+                        </div>
+                    </>
+                ) : (
+                    <div className="flex-1 flex items-center justify-center text-gray-600">
+                        Select a file to view content
+                    </div>
+                )}
             </div>
         </div>
     )
 }
-

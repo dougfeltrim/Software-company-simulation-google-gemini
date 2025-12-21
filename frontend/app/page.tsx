@@ -1,464 +1,518 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { toast } from 'sonner'
-import { Send, Sparkles, Square } from 'lucide-react'
-import { RealtimeLogs } from '@/components/RealtimeLogs'
-import { ProjectHistory } from '@/components/ProjectHistory'
 import { AgentFlowViewer } from '@/components/AgentFlowViewer'
+import { LiveWorkspace } from '@/components/LiveWorkspace'
+import { LogStream } from '@/components/LogStream'
+import { ChatInterface } from '@/components/ChatInterface'
+import { BrowserControl } from '@/components/BrowserControl'
+import { HistorySidebar } from '@/components/HistorySidebar'
 import { ProjectViewer } from '@/components/ProjectViewer'
+import { LiveCodePanel } from '@/components/LiveCodePanel'
+import { TerminalPanel } from '@/components/TerminalPanel'
+import { AIThoughtsOverlay } from '@/components/AIThoughtsOverlay'
+import { Zap, Play, Loader2, Bot, LayoutDashboard, History, RotateCcw, MonitorPlay, Power, Square, X, Code, Terminal } from 'lucide-react'
+import { Toaster, toast } from 'sonner'
 
-interface ModelConfig {
+interface LogMessage {
+  id: number
+  agentType?: string
+  message: string
+  timestamp: string
+}
+
+interface Model {
   name: string
-  displayName: string
-  category: 'code' | 'thinking' | 'common'
-  description: string
+  displayName?: string
+}
+
+interface CodeChunk {
+  file: string
+  content: string
+  timestamp: number
+}
+
+interface TerminalLine {
+  output: string
+  isError: boolean
+  timestamp: number
 }
 
 export default function Home() {
-  const [models, setModels] = useState<ModelConfig[]>([])
-  const [selectedModel, setSelectedModel] = useState('')
+  // State
+  const [prompt, setPrompt] = useState('')
   const [projectName, setProjectName] = useState('')
-  const [description, setDescription] = useState('')
-  const [generating, setGenerating] = useState(false)
-  const [activeTab, setActiveTab] = useState<'logs' | 'history'>('logs')
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
-  const [useCrewAI, setUseCrewAI] = useState(false)
-  const [crewAIAvailable, setCrewAIAvailable] = useState(false)
+  const [selectedModel, setSelectedModel] = useState('llama3.1')
+  const [availableModels, setAvailableModels] = useState<Model[]>([])
 
+  const [isRunning, setIsRunning] = useState(false)
+  const [connected, setConnected] = useState(false)
+  const [logs, setLogs] = useState<LogMessage[]>([])
+
+  const [mode, setMode] = useState<'simulation' | 'agent'>('simulation')
+  const [showHistory, setShowHistory] = useState(false)
+  const [refreshHistoryTrigger, setRefreshHistoryTrigger] = useState(0)
+
+  // Project Viewing State
+  const [viewingProject, setViewingProject] = useState<any>(null)
+
+  // Prop state for children
+  const [latestUpdate, setLatestUpdate] = useState<any>(null)
+  const [latestLog, setLatestLog] = useState<string | null>(null)
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null)
+
+  // NEW: Live UI State
+  const [codeChunks, setCodeChunks] = useState<CodeChunk[]>([])
+  const [terminalLines, setTerminalLines] = useState<TerminalLine[]>([])
+  const [currentThought, setCurrentThought] = useState<string | null>(null)
+  const [currentFile, setCurrentFile] = useState<string | null>(null)
+
+  // Derived state for Workspace
+  const [activeAgent, setActiveAgent] = useState({
+    name: 'System', role: 'Orchestrator', status: 'idle', task: '', file: ''
+  })
+
+  // Fetch Initial Data
   useEffect(() => {
-    loadModels()
+    fetchModels();
   }, [])
 
-  // Poll for project status
-  useEffect(() => {
-    if (!activeProjectId) {
-      setGenerating(false)
-      return
-    }
-
-    const checkStatus = async () => {
-      try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-        const res = await fetch(`${apiUrl}/api/history/${activeProjectId}`)
-        const data = await res.json()
-
-        if (data.project) {
-          // Sync generating state with project status
-          const isRunning = data.project.status === 'in-progress'
-          setGenerating(isRunning)
-        }
-      } catch (e) {
-        console.error('Poll error', e)
-      }
-    }
-
-    // Initial check
-    checkStatus()
-
-    // Poll every 2s
-    const interval = setInterval(checkStatus, 2000)
-    return () => clearInterval(interval)
-  }, [activeProjectId])
-
-  // Auto-fill form logic (separate from polling)
-  useEffect(() => {
-    if (activeProjectId) {
-      // ... existing auto-fill logic ...
-    }
-  }, [activeProjectId, models])
-
-  const loadModels = async () => {
+  const fetchModels = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/models`)
-      const data = await response.json()
-      setModels(data.models || [])
-
-      // Set default model
-      if (data.models && data.models.length > 0) {
-        setSelectedModel(data.models[0].name)
+      const res = await fetch('http://localhost:3001/api/models');
+      const data = await res.json();
+      if (data.models) {
+        setAvailableModels(data.models);
+        if (data.models.length > 0 && !selectedModel) {
+          setSelectedModel(data.models[0].name);
+        }
       }
-
-      // Check CrewAI availability
-      try {
-        const crewRes = await fetch(`${apiUrl}/api/crewai/health`)
-        const crewData = await crewRes.json()
-        setCrewAIAvailable(crewData.available === true)
-      } catch {
-        setCrewAIAvailable(false)
-      }
-    } catch (error) {
-      console.error('Failed to load models:', error)
-      toast.error('Failed to load models')
+    } catch (e) {
+      console.error("Failed to fetch models", e);
+      addLog('System', 'Failed to fetch models from Backend');
     }
   }
 
-  const handleGenerate = async () => {
-    if (!description.trim()) {
-      toast.error('Please enter a project description')
-      return
+  // WebSocket Connection
+  useEffect(() => {
+    let ws: WebSocket;
+    let reconnectTimer: NodeJS.Timeout;
+
+    const connect = () => {
+      ws = new WebSocket('ws://localhost:3002/ws')
+
+      ws.onopen = () => {
+        setConnected(true)
+        addLog('System', 'Connected to Autonomous Brain')
+      }
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+
+          if (data.type === 'log') {
+            addLog('Agent', data.message)
+            setLatestLog(data.message)
+            parseAgentActivity(data.message)
+          } else if (data.type === 'agent_update') {
+            setLatestUpdate(data)
+            updateActiveAgentFromStatus(data)
+          } else if (data.type === 'thought') {
+            // NEW: Handle AI thought
+            setCurrentThought(data.content)
+          } else if (data.type === 'code_chunk') {
+            // NEW: Handle code chunk
+            setCodeChunks(prev => [...prev, {
+              file: data.file,
+              content: data.chunk,
+              timestamp: Date.now()
+            }])
+            setCurrentFile(data.file)
+          } else if (data.type === 'terminal') {
+            // NEW: Handle terminal output
+            setTerminalLines(prev => [...prev, {
+              output: data.output,
+              isError: data.isError || false,
+              timestamp: Date.now()
+            }])
+          }
+        } catch (e) {
+          console.error('Parse error', e)
+        }
+      }
+
+      ws.onclose = () => {
+        setConnected(false)
+        reconnectTimer = setTimeout(connect, 3000)
+      }
     }
 
-    if (!useCrewAI && !selectedModel) {
-      toast.error('Please select a model')
-      return
-    }
+    connect()
 
-    setGenerating(true)
-    setActiveProjectId(null) // Reset active project
+    return () => {
+      ws?.close()
+      clearTimeout(reconnectTimer)
+    }
+  }, [])
+
+  const addLog = (type: string, msg: string) => {
+    setLogs(prev => [...prev, {
+      id: Date.now(),
+      agentType: type,
+      message: msg,
+      timestamp: new Date().toLocaleTimeString()
+    }].slice(-100))
+  }
+
+  const parseAgentActivity = (msg: string) => {
+    // Extract file being written from developer messages
+    if (msg.includes('Developer: Writing')) {
+      const match = msg.match(/Writing (.+?)\.\.\./)
+      if (match) {
+        setCurrentFile(match[1])
+      }
+    }
+  }
+
+  const updateActiveAgentFromStatus = (update: any) => {
+    const { agent, status, metrics } = update
+
+    if (agent === 'analyze') {
+      setActiveAgent({ name: 'Alice', role: 'Product Manager', status: 'Analyzing', task: 'Defining Requirements', file: 'requirements.md' })
+    } else if (agent === 'plan') {
+      setActiveAgent({ name: 'Bob', role: 'Architect', status: 'Planning', task: 'Designing Structure', file: 'architecture.json' })
+    } else if (agent === 'ux') {
+      setActiveAgent({ name: 'Carol', role: 'Designer', status: 'Designing', task: 'Creating Design', file: 'design.md' })
+    } else if (agent === 'frontend_dev' || agent === 'backend_dev') {
+      const file = metrics?.file || 'code'
+      const role = agent === 'frontend_dev' ? 'Frontend' : 'Backend'
+      setActiveAgent({ name: 'Dev', role: role, status: 'Coding', task: `Writing ${file}`, file: file })
+      setCurrentFile(file)
+    } else if (agent === 'qa_engineer') {
+      const file = metrics?.file || ''
+      setActiveAgent({ name: 'QA', role: 'QA Engineer', status: 'Testing', task: `Testing ${file || 'code'}`, file: file })
+    } else if (agent === 'finalize') {
+      setActiveAgent({ name: 'System', role: 'Orchestrator', status: 'Idle', task: 'Project Complete', file: '' })
+      setIsRunning(false)
+      setRefreshHistoryTrigger(p => p + 1)
+      addLog('System', 'Project Generation Complete!')
+      toast.success('Project Generation Complete!')
+      setCurrentProjectId(null)
+    }
+  }
+
+  const handleStart = async () => {
+    if (!prompt.trim()) return
+
+    setIsRunning(true)
+    setViewingProject(null)
+    setLogs([])
+    setCodeChunks([])
+    setTerminalLines([])
+    setCurrentThought(null)
+    setCurrentFile(null)
+    addLog('System', `Starting project: ${prompt}`)
+
+    const timeString = new Date().toLocaleTimeString().replace(/:/g, '-');
+    const finalName = projectName.trim() ? projectName.trim() : `Project ${timeString}`;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const endpoint = useCrewAI ? '/api/generate-crewai' : '/api/generate'
-
-      const response = await fetch(`${apiUrl}${endpoint}`, {
+      const res = await fetch('http://localhost:3001/api/generate-crewai', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: projectName || `Project-${Date.now()}`,
-          description,
-          model: selectedModel,
-        }),
+          name: finalName,
+          description: prompt,
+          model: selectedModel
+        })
       })
 
-      if (!response.ok) {
-        throw new Error('Failed to start project generation')
-      }
+      if (!res.ok) throw new Error('Failed to start')
 
-      const data = await response.json()
+      const data = await res.json()
+      setCurrentProjectId(data.projectId)
+      addLog('System', `Project ID: ${data.projectId}`)
+      setRefreshHistoryTrigger(p => p + 1)
 
-      toast.success(`Project "${data.name}" started!`, {
-        description: 'Watch the logs for real-time updates',
-      })
-
-      // Switch to logs tab and set active project
-      setActiveTab('logs')
-      if (data.projectId) {
-        setActiveProjectId(data.projectId)
-      }
-
-      // Clear form
-      setProjectName('')
-      setDescription('')
-    } catch (error) {
-      console.error('Generation error:', error)
-      toast.error('Failed to start project generation')
-      setGenerating(false)
-    } finally {
-      // Don't reset generating here; let the poller handle it based on project status
+    } catch (e) {
+      addLog('Error', 'Failed to start generation')
+      setIsRunning(false)
+      toast.error('Failed to start generation')
     }
   }
 
   const handleStop = async () => {
-    if (!activeProjectId) return
-
+    if (!currentProjectId) return;
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      await fetch(`${apiUrl}/api/stop`, {
+      await fetch('http://localhost:3001/api/stop', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: activeProjectId }),
-      })
-      toast.info('Stopping generation...')
-    } catch (error) {
-      console.error('Failed to stop:', error)
-      toast.error('Failed to stop generation')
+        body: JSON.stringify({ projectId: currentProjectId })
+      });
+      addLog('System', 'Stop signal sent.');
+      toast.warning('Stopping generation...');
+    } catch (e) {
+      console.error(e);
     }
   }
 
-  const handleForceStop = async () => {
-    if (!confirm('Are you sure you want to FORCE STOP all running projects?')) return
+  const handleResetSystem = async () => {
+    if (!confirm('Are you sure you want to reset all services? This will clear current state.')) return;
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const res = await fetch(`${apiUrl}/api/stop-all`, { method: 'POST' })
-      const data = await res.json()
-      toast.warning(`Stopped ${data.count} active projects.`)
+      await fetch('http://localhost:3001/api/reset', { method: 'POST' });
+      setLogs([]);
+      setCodeChunks([]);
+      setTerminalLines([]);
+      setCurrentThought(null);
+      setIsRunning(false);
+      setViewingProject(null);
+      setActiveAgent({
+        name: 'System', role: 'Orchestrator', status: 'idle', task: '', file: ''
+      });
+      setRefreshHistoryTrigger(p => p + 1);
+      toast.success('System Reset Successfully');
     } catch (e) {
-      console.error(e)
-      toast.error('Failed to force stop')
+      toast.error('Failed to reset system');
     }
   }
 
-  const handleReset = async () => {
-    if (!confirm('CONFIRM RESET: This will clear all internal state and mark in-progress projects as failed. Use this if the system is stuck.')) return
-
-    try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
-      const res = await fetch(`${apiUrl}/api/reset`, { method: 'POST' })
-      const data = await res.json()
-      toast.success(`System Reset Complete. Cleared ${data.resetCount} projects.`)
-
-      // Reset local state
-      setGenerating(false)
-      setActiveProjectId(null)
-      setActiveTab('history') // Go to history to see the carnage (updated statuses)
-    } catch (e) {
-      console.error(e)
-      toast.error('Failed to reset system')
+  const handleResendProject = (project: any) => {
+    setPrompt(project.description);
+    setProjectName(project.name || '');
+    if (availableModels.find(m => m.name === project.model)) {
+      setSelectedModel(project.model);
     }
+    toast.info(`Loaded project "${project.name}" into prompt.`);
+    if (window.innerWidth < 1024) setShowHistory(false);
   }
 
-  const handleSelectProject = (id: string) => {
-    setActiveProjectId(id)
-    setActiveTab('history')
+  const handleViewProject = (project: any) => {
+    setViewingProject(project);
+    setPrompt(project.description || '');
+    setProjectName(project.name || '');
+    if (project.model) setSelectedModel(project.model);
+
+    if (project.logs && Array.isArray(project.logs)) {
+      setLogs(project.logs.map((msg: string, i: number) => ({
+        id: i,
+        agentType: 'History',
+        message: msg,
+        timestamp: ''
+      })));
+    } else {
+      setLogs([]);
+    }
+
+    if (window.innerWidth < 1024) setShowHistory(false);
   }
 
-  const modelsByCategory = {
-    code: models.filter(m => m.category === 'code'),
-    thinking: models.filter(m => m.category === 'thinking'),
-    common: models.filter(m => m.category === 'common'),
-  }
+  // Determine if we should show split-screen live view
+  const showLiveView = isRunning && !viewingProject
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Header */}
-      <header className="bg-card border-b border-border px-4 py-3 shrink-0">
-        <div className="flex items-center gap-3">
-          <Sparkles className="w-7 h-7 text-accent" />
-          <div>
-            <h1 className="text-xl font-bold text-foreground">AI Software Company</h1>
-            <p className="text-xs text-muted">Create complete projects with Ollama</p>
+    <main className="h-screen bg-[#09090b] text-foreground flex flex-col overflow-hidden font-sans">
+      <Toaster position="top-right" theme="dark" />
+
+      {/* AI Thoughts Overlay */}
+      <AIThoughtsOverlay thought={currentThought} />
+
+      {/* Top Bar */}
+      <header className="shrink-0 flex flex-col md:flex-row items-center justify-between border-b border-white/10 px-4 py-2 md:h-16 bg-[#09090b] z-10 gap-2 md:gap-0">
+        <div className="flex items-center justify-between w-full md:w-auto gap-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg shadow-lg shadow-purple-900/20">
+              <Zap className="w-5 h-5 text-white" />
+            </div>
+            <div className="hidden sm:block">
+              <h1 className="font-bold text-lg tracking-tight leading-none">Autonomous Software Co.</h1>
+              <div className="flex items-center gap-2 mt-1">
+                <span className={`w-1.5 h-1.5 rounded-full ${connected ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.6)]' : 'bg-red-500'}`} />
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+                  {connected ? 'System Online' : 'Connecting...'}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
-      </header>
 
-      {/* Main Content - Responsive Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row gap-3 p-3 min-h-0 overflow-hidden">
-        {/* Left Panel - Form */}
-        <div className="bg-card rounded-xl border border-border p-4 overflow-y-auto shrink-0 lg:w-80 xl:w-96 max-h-[40vh] lg:max-h-full">
-          <h2 className="text-lg font-semibold mb-4 text-foreground">Create New Project</h2>
+        {/* Center - Generation Controls */}
+        {mode === 'simulation' && (
+          <div className="flex-1 w-full md:max-w-4xl md:mx-4 lg:mx-8 flex gap-2">
+            <div className="flex-[2] relative group">
+              <input
+                type="text"
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Describe your software idea..."
+                className="w-full bg-black/50 border border-white/10 rounded-lg pl-3 pr-2 py-2.5 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all placeholder:text-gray-600"
+                disabled={isRunning}
+              />
+            </div>
 
-          <div className="space-y-4">
-            {/* Project Name */}
-            <div>
-              <label className="block text-sm font-medium text-muted mb-2">
-                Project Name (optional)
-              </label>
+            <div className="flex-1 relative group min-w-[100px] hidden md:block">
               <input
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="My Awesome Project"
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent text-foreground placeholder:text-muted/50 transition-all"
+                placeholder="Name (Optional)"
+                className="w-full bg-black/50 border border-white/10 rounded-lg pl-3 pr-2 py-2.5 text-sm focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-all placeholder:text-gray-600"
+                disabled={isRunning}
               />
             </div>
 
-            {/* Engine Selection */}
-            <div>
-              <label className="block text-sm font-medium text-muted mb-2">
-                Generation Engine
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                {/* TypeScript Option */}
-                <button
-                  type="button"
-                  onClick={() => setUseCrewAI(false)}
-                  className={`p-3 rounded-xl border-2 text-left transition-all ${!useCrewAI
-                    ? 'border-accent bg-accent/10 ring-1 ring-accent/30'
-                    : 'border-border bg-background hover:border-muted/50'
-                    }`}
+            <div className="flex items-center gap-2">
+              <div className="relative hidden xl:block">
+                <select
+                  value={selectedModel}
+                  onChange={(e) => setSelectedModel(e.target.value)}
+                  className="bg-[#18181b] text-white border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-purple-500 appearance-none min-w-[120px] cursor-pointer hover:bg-[#27272a] transition-colors [&>option]:bg-[#18181b] [&>option]:text-white"
+                  disabled={isRunning}
                 >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">⚡</span>
-                    <span className={`text-sm font-semibold ${!useCrewAI ? 'text-accent' : 'text-foreground'}`}>
-                      TypeScript
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted">Rápido e direto</p>
-                </button>
-
-                {/* LangGraph Option */}
-                <button
-                  type="button"
-                  onClick={() => crewAIAvailable && setUseCrewAI(true)}
-                  disabled={!crewAIAvailable}
-                  className={`p-3 rounded-xl border-2 text-left transition-all ${useCrewAI
-                    ? 'border-purple-500 bg-purple-500/10 ring-1 ring-purple-500/30'
-                    : crewAIAvailable
-                      ? 'border-border bg-background hover:border-muted/50'
-                      : 'border-border bg-background opacity-50 cursor-not-allowed'
-                    }`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-lg">🤖</span>
-                    <span className={`text-sm font-semibold ${useCrewAI ? 'text-purple-400' : 'text-foreground'}`}>
-                      LangGraph
-                    </span>
-                  </div>
-                  <p className="text-xs text-muted">
-                    {crewAIAvailable ? 'Multi-agente IA' : 'Não disponível'}
-                  </p>
-                </button>
+                  {availableModels.length === 0 && <option value="llama3.1">Loading...</option>}
+                  {availableModels.map(m => (
+                    <option key={m.name} value={m.name} className="bg-[#18181b] text-white">
+                      {m.displayName || m.name}
+                    </option>
+                  ))}
+                </select>
               </div>
-              {!crewAIAvailable && (
-                <p className="text-xs text-orange-400 mt-2">
-                  ⚠️ LangGraph offline. Inicie: cd crewai-service && python server.py
-                </p>
+
+              {isRunning ? (
+                <button
+                  onClick={handleStop}
+                  className="px-4 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 transition-all shadow-lg bg-red-500/10 text-red-500 border border-red-500/20 hover:bg-red-500/20"
+                >
+                  <Square className="w-4 h-4 fill-current" />
+                  <span className="hidden sm:inline">Stop</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleStart}
+                  disabled={!connected}
+                  className="px-6 py-2.5 rounded-lg font-bold text-sm flex items-center gap-2 transition-all shadow-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-900/20 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  <span className="hidden sm:inline">Launch</span>
+                </button>
               )}
             </div>
-
-            {/* Model Selection */}
-            <div>
-              <label className="block text-sm font-medium text-muted mb-2">
-                Select Model
-              </label>
-              <select
-                value={selectedModel}
-                onChange={(e) => setSelectedModel(e.target.value)}
-                className="w-full px-4 py-2.5 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent text-foreground transition-all"
-              >
-                {Object.entries(modelsByCategory).map(([category, categoryModels]) => (
-                  categoryModels.length > 0 && (
-                    <optgroup key={category} label={category.toUpperCase()} className="bg-card">
-                      {categoryModels.map((model) => (
-                        <option key={model.name} value={model.name} className="bg-card">
-                          {model.displayName}
-                        </option>
-                      ))}
-                    </optgroup>
-                  )
-                ))}
-              </select>
-              {selectedModel && (
-                <p className="mt-1.5 text-xs text-muted">
-                  {models.find(m => m.name === selectedModel)?.description}
-                </p>
-              )}
-            </div>
-
-            {/* Description */}
-            <div>
-              <label className="block text-sm font-medium text-muted mb-2">
-                Project Description
-              </label>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Describe what you want to build... Be specific!"
-                rows={4}
-                className="w-full px-3 py-2 bg-background border border-border rounded-lg focus:ring-2 focus:ring-accent focus:border-transparent resize-none text-foreground placeholder:text-muted/50 transition-all text-sm"
-              />
-            </div>
-
-            {/* Generate/Stop Button */}
-            {generating ? (
-              <button
-                onClick={handleStop}
-                className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-lg font-medium flex items-center justify-center gap-2 transition-all shadow-lg shadow-red-600/20"
-              >
-                <Square className="w-5 h-5 fill-current" />
-                Stop Generation
-              </button>
-            ) : (
-              <button
-                onClick={handleGenerate}
-                disabled={!description.trim()}
-                className="w-full bg-accent hover:bg-accent-hover text-white py-3 px-6 rounded-lg font-medium disabled:bg-gray-700 disabled:cursor-not-allowed flex items-center justify-center gap-2 transition-all shadow-lg shadow-accent/20 disabled:shadow-none"
-              >
-                <Send className="w-5 h-5" />
-                Generate Project
-              </button>
-            )}
           </div>
+        )}
+
+        {/* Right Actions */}
+        <div className="flex items-center gap-2 md:gap-3">
+          <button
+            onClick={handleResetSystem}
+            className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors border border-transparent hover:border-red-500/20"
+            title="Reset System Services"
+          >
+            <Power className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={() => setShowHistory(!showHistory)}
+            className={`p-2 rounded-lg transition-colors border ${showHistory ? 'bg-purple-500/20 border-purple-500/50 text-purple-300' : 'text-gray-400 hover:bg-white/5 border-transparent'}`}
+            title="Project History"
+          >
+            <History className="w-5 h-5" />
+          </button>
         </div>
+      </header>
 
-        {/* Middle Panel - Logs/Preview */}
-        <div className="bg-card rounded-xl border border-border p-4 overflow-hidden flex flex-col flex-1 min-h-0 min-w-0">
-          {/* Tabs */}
-          <div className="flex gap-2 mb-4 border-b border-border">
-            <button
-              onClick={() => setActiveTab('logs')}
-              className={`px-4 py-2 font-medium transition-all ${activeTab === 'logs'
-                ? 'text-accent border-b-2 border-accent'
-                : 'text-muted hover:text-foreground'
-                }`}
-            >
-              Real-time Logs
-            </button>
-            <button
-              onClick={() => setActiveTab('history')}
-              className={`px-4 py-2 font-medium transition-all ${activeTab === 'history'
-                ? 'text-accent border-b-2 border-accent'
-                : 'text-muted hover:text-foreground'
-                }`}
-            >
-              Current Project
-            </button>
-          </div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex overflow-hidden relative">
 
-          {/* Tab Content */}
-          <div className="flex-1 overflow-hidden min-h-0">
-            {activeTab === 'logs' && (
-              useCrewAI ? (
-                // Split view: Agent Flow + Logs
-                <div className="h-full flex flex-col lg:flex-row gap-3">
-                  <div className="flex-1 min-h-0 lg:max-w-[280px]">
-                    <AgentFlowViewer isRunning={generating} />
-                  </div>
-                  <div className="flex-1 min-h-0">
-                    <RealtimeLogs wsUrl="ws://localhost:3002" />
-                  </div>
+        {/* Main Grid/Workspace */}
+        <div className={`flex-1 flex flex-col min-w-0 transition-all duration-300`}>
+          {mode === 'simulation' ? (
+            <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-4 p-4 min-h-0 overflow-y-auto lg:overflow-hidden">
+
+              {/* Left: Department Status */}
+              <div className="lg:col-span-2 min-w-0 h-64 lg:h-full flex flex-col gap-4 order-2 lg:order-1">
+                <div className="flex-1 max-h-full overflow-hidden border border-white/10 rounded-xl bg-card/10 backdrop-blur-sm">
+                  <AgentFlowViewer
+                    isRunning={isRunning}
+                    connected={connected}
+                    latestUpdate={latestUpdate}
+                    latestLog={latestLog}
+                  />
                 </div>
-              ) : (
-                <RealtimeLogs />
-              )
-            )}
-            {activeTab === 'history' && (
-              activeProjectId ? (
-                <ProjectViewer
-                  projectId={activeProjectId}
-                  onStop={handleStop}
-                  onRetry={(project) => {
-                    setProjectName(project.name)
-                    setDescription(project.description)
-                    if (models.some(m => m.name === project.model)) {
-                      setSelectedModel(project.model)
-                    }
-                    setActiveTab('logs')
-                    toast.info('Project details loaded. Click Generate to re-run.')
-                  }}
-                />
-              ) : (
-                <div className="text-center py-8 text-muted">
-                  Select a project from history or start a new one to view details
-                </div>
-              )
-            )}
-          </div>
+              </div>
+
+              {/* Center: Live Split View OR Project Viewer */}
+              <div className="lg:col-span-7 min-w-0 h-[60vh] lg:h-full order-1 lg:order-2">
+                {viewingProject ? (
+                  <div className="h-full relative border border-white/10 rounded-xl overflow-hidden bg-card/5 backdrop-blur-sm shadow-2xl">
+                    <ProjectViewer project={viewingProject} />
+                    <div className="absolute top-0 right-0 p-2 z-10">
+                      <button
+                        onClick={() => setViewingProject(null)}
+                        className="text-xs bg-black/50 border border-white/10 px-2 py-1 rounded hover:bg-white/10 transition-colors flex items-center gap-1"
+                      >
+                        <X className="w-3 h-3" />
+                        Close Viewer
+                      </button>
+                    </div>
+                  </div>
+                ) : showLiveView ? (
+                  /* LIVE SPLIT VIEW */
+                  <div className="h-full grid grid-cols-2 gap-4">
+                    {/* Left: Live Code */}
+                    <LiveCodePanel
+                      codeChunks={codeChunks}
+                      currentFile={currentFile || undefined}
+                    />
+
+                    {/* Right: Terminal */}
+                    <TerminalPanel
+                      lines={terminalLines}
+                      isRunning={isRunning}
+                    />
+                  </div>
+                ) : (
+                  /* Default Workspace */
+                  <div className="h-full border border-white/10 rounded-xl overflow-hidden bg-card/5 backdrop-blur-sm shadow-2xl relative">
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-900/5 to-blue-900/5 pointer-events-none" />
+                    <LiveWorkspace activeAgent={activeAgent} latestLog={latestLog} />
+                  </div>
+                )}
+              </div>
+
+              {/* Right: Log Stream */}
+              <div className="lg:col-span-3 min-w-0 h-48 lg:h-full border border-white/10 rounded-xl overflow-hidden bg-black/40 order-3 lg:order-3">
+                <LogStream logs={logs} />
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 gap-4 p-4 min-h-0 overflow-hidden">
+              <div className="lg:col-span-4 min-w-0 h-full border border-white/10 rounded-xl overflow-hidden bg-card/10">
+                <ChatInterface />
+              </div>
+              <div className="lg:col-span-8 min-w-0 h-full border border-white/10 rounded-xl overflow-hidden bg-black">
+                <BrowserControl />
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Right Panel - History */}
-        <div className="bg-card rounded-xl border border-border p-4 overflow-hidden shrink-0 lg:w-72 xl:w-80 max-h-[30vh] lg:max-h-full flex flex-col">
-          {/* Emergency Controls */}
-          <div className="pb-3 mb-3 border-b border-border shrink-0">
-            <h3 className="text-xs font-semibold text-muted uppercase tracking-wider mb-2">
-              Emergency Controls
-            </h3>
-            <div className="flex gap-2">
-              <button
-                onClick={handleForceStop}
-                className="flex-1 px-2 py-1.5 bg-red-900/30 text-red-400 rounded-lg hover:bg-red-900/50 text-xs font-semibold transition-colors border border-red-500/20"
-                title="Stop all running projects immediately"
-              >
-                Force Stop
-              </button>
-              <button
-                onClick={handleReset}
-                className="flex-1 px-2 py-1.5 bg-orange-900/30 text-orange-400 rounded-lg hover:bg-orange-900/50 text-xs font-semibold transition-colors border border-orange-500/20"
-                title="Clear internal state and mark stuck projects as failed"
-              >
-                Reset
+        {/* History Sidebar */}
+        {showHistory && (
+          <div className="absolute right-0 top-0 bottom-0 w-80 border-l border-white/10 bg-black/95 backdrop-blur-xl h-full shadow-2xl z-20 animate-in slide-in-from-right duration-300">
+            <div className="absolute top-2 right-2 md:hidden z-30">
+              <button onClick={() => setShowHistory(false)} className="p-2 text-gray-400">
+                <X className="w-5 h-5 fill-current" />
               </button>
             </div>
+            <HistorySidebar
+              refreshTrigger={refreshHistoryTrigger}
+              onSelectProject={handleViewProject}
+              onResendProject={handleResendProject}
+            />
           </div>
-          <div className="flex-1 overflow-hidden min-h-0">
-            <ProjectHistory onSelectProject={handleSelectProject} />
-          </div>
-        </div>
+        )}
+
       </div>
-    </div>
+    </main>
   )
 }
-

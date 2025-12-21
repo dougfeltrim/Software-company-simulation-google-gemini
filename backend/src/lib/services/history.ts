@@ -18,6 +18,7 @@ export interface ProjectHistoryEntry {
   filesGenerated: string[];
   error?: string;
   outputPath?: string;
+  logs?: string[];
 }
 
 export class HistoryService {
@@ -26,8 +27,8 @@ export class HistoryService {
 
   constructor() {
     this.historyFile = path.join(process.cwd(), 'generated', 'history.json');
-    // Save projects in a 'generated-projects' folder at the repository root level (one up from backend)
-    this.projectsDir = path.resolve(process.cwd(), '..', 'generated-projects');
+    // Save projects in a 'output' folder at the repository root level (one up from backend)
+    this.projectsDir = path.resolve(process.cwd(), '..', 'output');
   }
 
   /**
@@ -75,6 +76,7 @@ export class HistoryService {
       createdAt: Date.now(),
       filesGenerated: [],
       outputPath: outputPath, // Store absolute path
+      logs: []
     };
 
     const history = await this.loadHistory();
@@ -111,13 +113,15 @@ export class HistoryService {
   async completeProject(
     id: string,
     filesGenerated: string[],
-    outputPath: string
+    outputPath: string,
+    logs?: string[]
   ): Promise<void> {
     await this.updateProject(id, {
       status: 'success',
       completedAt: Date.now(),
       filesGenerated,
       outputPath,
+      logs
     });
   }
 
