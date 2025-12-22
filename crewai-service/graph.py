@@ -30,7 +30,7 @@ class ProjectState(TypedDict):
 
 def get_llm(model: str = None):
     """Get Ollama LLM instance"""
-    model_name = model or os.getenv("DEFAULT_MODEL", "llama3.1:8b")
+    model_name = model or os.getenv("DEFAULT_MODEL", "gemma3:4b")
     ollama_host = os.getenv("OLLAMA_HOST", "http://127.0.0.1:11434")
     print(f"DEBUG: Connecting to Ollama at {ollama_host} with model {model_name}")
     

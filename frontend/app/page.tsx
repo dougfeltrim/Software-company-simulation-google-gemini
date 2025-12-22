@@ -42,7 +42,7 @@ export default function Home() {
   // State
   const [prompt, setPrompt] = useState('')
   const [projectName, setProjectName] = useState('')
-  const [selectedModel, setSelectedModel] = useState('llama3.1')
+  const [selectedModel, setSelectedModel] = useState('gemma3:4b')
   const [availableModels, setAvailableModels] = useState<Model[]>([])
 
   const [isRunning, setIsRunning] = useState(false)
@@ -369,7 +369,7 @@ export default function Home() {
                   className="bg-[#18181b] text-white border border-white/10 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-purple-500 appearance-none min-w-[120px] cursor-pointer hover:bg-[#27272a] transition-colors [&>option]:bg-[#18181b] [&>option]:text-white"
                   disabled={isRunning}
                 >
-                  {availableModels.length === 0 && <option value="llama3.1">Loading...</option>}
+                  {availableModels.length === 0 && <option value="gemma3:4b">Loading...</option>}
                   {availableModels.map(m => (
                     <option key={m.name} value={m.name} className="bg-[#18181b] text-white">
                       {m.displayName || m.name}

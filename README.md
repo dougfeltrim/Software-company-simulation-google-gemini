@@ -26,7 +26,7 @@ A modern, real-time software company simulation using only local Ollama models. 
 - **Qwen 2.5 14B** (`qwen2.5:14b`) - Strong analytical capabilities
 
 ### General Models (Balanced)
-- **Llama 3.1 8B** (`llama3.1:8b`) - Recommended default
+- **Llama 3.1 8B** (`gemma3:4b`) - Recommended default
 - **Mistral 7B** (`mistral:7b`) - Fast and efficient
 - **Gemma 2 9B** (`gemma2:9b`) - Google's open model
 - **Phi-3 14B** (`phi3:14b`) - Microsoft's compact model
@@ -48,7 +48,7 @@ A modern, real-time software company simulation using only local Ollama models. 
 
 2. **Pull at least one model**
    ```bash
-   ollama pull llama3.1:8b
+   ollama pull gemma3:4b
    ollama pull deepseek-coder:6.7b
    ollama pull qwen2.5:14b
    ```
@@ -185,7 +185,7 @@ npm run type-check
 {
   "name": "My Project",
   "description": "Build a calculator app",
-  "model": "llama3.1:8b"
+  "model": "gemma3:4b"
 }
 ```
 
@@ -206,7 +206,7 @@ ollama serve
 ollama list
 
 # Pull a model
-ollama pull llama3.1:8b
+ollama pull gemma3:4b
 ```
 
 **Port already in use?**

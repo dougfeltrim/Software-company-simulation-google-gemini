@@ -57,7 +57,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
   // Common Models
   {
-    name: 'llama3.1:8b',
+    name: 'gemma3:4b',
     displayName: 'Llama 3.1 8B',
     category: 'common',
     description: 'Balanced general-purpose model',
@@ -100,7 +100,7 @@ export const AVAILABLE_MODELS: ModelConfig[] = [
   },
 ];
 
-export const DEFAULT_MODEL = 'llama3.1:8b';
+export const DEFAULT_MODEL = 'gemma3:4b';
 export const DEFAULT_TEMPERATURE = 0.7;
 
 export function getModelByName(modelName: string): ModelConfig | undefined {

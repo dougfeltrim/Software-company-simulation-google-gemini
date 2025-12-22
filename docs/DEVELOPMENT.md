@@ -55,7 +55,7 @@ This guide provides detailed information for developers working on the AI Softwa
 
 3. **At least one Ollama model**
    ```bash
-   ollama pull llama3.1:8b
+   ollama pull gemma3:4b
    ```
 
 ## Getting Started
@@ -345,7 +345,7 @@ npm run dev -- -p 3002
 
 ### "Model not found"
 ```bash
-ollama pull llama3.1:8b
+ollama pull gemma3:4b
 ```
 
 ## Architecture

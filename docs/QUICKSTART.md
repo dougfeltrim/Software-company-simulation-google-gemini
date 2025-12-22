@@ -24,11 +24,11 @@ Download from https://ollama.ai/download
 ollama serve
 
 # In a new terminal, pull a model
-ollama pull llama3.1:8b
+ollama pull gemma3:4b
 ```
 
 **Recommended models:**
-- `llama3.1:8b` - Best default (4.7GB)
+- `gemma3:4b` - Best default (4.7GB)
 - `deepseek-coder:6.7b` - Best for code (3.8GB)
 - `mistral:7b` - Fast and efficient (4.1GB)
 
@@ -96,7 +96,7 @@ Edit `.env` and change the PORT values.
 ### Model not found?
 Pull the model first:
 ```bash
-ollama pull llama3.1:8b
+ollama pull gemma3:4b
 ```
 
 ## Next Steps

@@ -78,7 +78,7 @@
 │  • qwen2.5:14b                                                  │
 │                                                                  │
 │  Common Models:                                                 │
-│  • llama3.1:8b (default)                                        │
+│  • gemma3:4b (default)                                        │
 │  • mistral:7b                                                   │
 │  • gemma2:9b                                                    │
 │  • phi3:14b                                                     │
